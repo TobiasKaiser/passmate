@@ -10,6 +10,10 @@ Welcome to Passmate's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   getting_started
+   database
+   sync
+
 This package is work-in-progress.
 
 
