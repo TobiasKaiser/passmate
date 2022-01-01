@@ -1,0 +1,19 @@
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "passmate"
+authors = [{name = "Tobias Kaiser", email = "mail@tb-kaiser.de"}]
+readme = "README.rst"
+license = {file = "LICENSE"}
+classifiers = ["License :: OSI Approved :: Apache Software License"]
+dynamic = ["version", "description"]
+requires-python = ">=3.7"
+dependencies = [
+    "scrypt >=0.8.6",
+    "prompt-toolkit >=3.0.9"
+]
+
+[project.urls]
+Source = "https://github.com/TobiasKaiser/passmate"
