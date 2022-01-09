@@ -3,19 +3,20 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to Passmate's documentation!
-====================================
+Passmate
+========
+
+Passmate is a simple password manager that stores your secret data (login credentials, keys etc.) securely encrypted and offers a mechanism to synchronize the data between multiple machines.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Contents:
 
    getting_started
+   config
    database
    sync
-
-This package is work-in-progress.
-
+   security
 
 Indices and tables
 ==================

@@ -1,4 +1,6 @@
-Database format
+.. _Database Format:
+
+Database Format
 ===============
 
 Passmate organizes the password database as JSON object. The JSON object is stored on disk using `scrypt`_'s `container format`_. The password database is protected by a user-defined master passphrase. The scrypt key derivation function is used to provide comparatively strong protection against brute-force guessing of the master passphrase when an attacker gains access to your encrypted password storage file, as explained in `this paper`_. The container format uses symmetric AES256-CTR encryption and HMAC-SHA256 to ensure file integrity. If you want to access the raw JSON object without using Passmate, you can for example use the encryption utility program that comes with `scrypt`_.
@@ -7,7 +9,7 @@ Passmate organizes the password database as JSON object. The JSON object is stor
 .. _container format: https://github.com/Tarsnap/scrypt/blob/master/FORMAT
 .. _this paper: https://www.tarsnap.com/scrypt/scrypt.pdf
 
-Data model
+Data Model
 ----------
 
 A password database can contain an arbitrary number of password records. Each password record can contain metadata and user data fields. Each field has a name (string) and a value (string).
@@ -16,7 +18,7 @@ Currently, the only vald metadata field is "path". The path of a record is store
 
 User data fields can have arbitrary field names. Example field names are "password", "username" and "email".
 
-JSON object
+JSON Object
 -----------
 
 Here a short example password database JSON object obj::
@@ -34,7 +36,7 @@ Here a short example password database JSON object obj::
 
 obj.version must be 2.
 
-obj.purpose must be either "primary" or "sync_copy". A primary database file is marked with the purpose "primary" and can be opened directly through Passmate. Records can be read, added and modified in this file. After a primary database file has been modified, the updated database file will be written and replace the prevous primary database. Synchronization copies marked by the purpose "sync_copy" are written by one peer of a synchronization network and read by all other peers. The mechanism for synchronization is described further in :doc:`sync`.
+obj.purpose must be either "primary" or "sync_copy". A primary database file is marked with the purpose "primary" and can be opened directly through Passmate. Records can be read, added and modified in this file. After a primary database file has been modified, the updated database file will be written and replace the prevous primary database. Synchronization copies marked by the purpose "sync_copy" are written by one peer of a synchronization network and read by all other peers. The mechanism for synchronization is described further in the section on :ref:`Synchronization`.
 
 obj.records is a dictionary containing all records. Keys of the records dictionary (record identifiers) are random strings (in this example "MyRecordId") that uniquely identify records and are not exposed to the user. Values of the records dictionary are arrays of field tuples. Record identifiers areis immutable. When new record identifiers are generated, enough randomness should be used in order to rule out collisions with other copies of the password database, which cannot be detected by inspecting the local copy of the password database.
 
@@ -53,8 +55,10 @@ The JSON object keeps track of all modifications that have ever been saved to th
 
 TODO: JSON schema
 
-Merging copies
---------------
+.. _Merging:
+
+Merging
+-------
 
 This format allows easy merging of databases that have been modified separately (practically, on different computers). Two field tuple arrays A and B are merged by appending all field tuples from B to A that are not already present in A (set union operation).
 
