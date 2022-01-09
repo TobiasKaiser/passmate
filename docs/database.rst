@@ -28,8 +28,8 @@ Here a short example password database JSON object obj::
         "purpose": "primary",
         "records": {
             "MyRecordId": [
-                ["meta", "path", 12345, "record_path"],
-                ["user", "password", 67890, "thisismypassword"]
+                ["meta", "path", "record_path", 12345],
+                ["user", "password", "thisismypassword", 67890]
             ]
         }
     }
