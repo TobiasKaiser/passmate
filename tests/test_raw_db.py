@@ -61,9 +61,48 @@ def test_decode_json(purpose):
 
 
 invalid_json_objs = [
+    # Empty object:
     {},
+    # Invalid purpose:
     {"version": 2, "purpose": "blabla", "records": {}},
-    {"version": 3, "purpose": "blabla", "records": {}},
+    # Invalid version:
+    {"version": 3, "purpose": "sync_copy", "records": {}},
+    # No version:
+    {"purpose": "sync_copy", "records": {}},
+    # No purpose:
+    {"version": 2, "records": {}},
+    # No records:
+    {"purpose": "primary", "version": 2},
+    # Too many attributes:
+    {"purpose": "primary", "version": 2, "records": {}, "hello":"world"},
+    # record contains string instead of array of tuples:
+    {"purpose": "primary", "version": 2, "records":{"RecA":"hello"}},
+    # record contains array of string instead of array of tuples:
+    {"purpose": "primary", "version": 2, "records":{"RecA":[
+        "hello"
+    ]}},
+    # invalid field tuple:
+    {"purpose": "primary", "version": 2, "records":{"RecA":[
+        ["user", "fieldname", "fieldvalue", "ERROR"]
+    ]}},
+    # invalid field tuple:
+    {"purpose": "primary", "version": 2, "records":{"RecA":[
+        ["user", 1234, "fieldvalue", 1234]
+    ]}},
+    # invalid field tuple:
+    {"purpose": "primary", "version": 2, "records":{"RecA":[
+        ["user", "fieldname", "fieldvalue", 1234],
+        ["user", "fieldname", "fieldvalue", "ERROR"]
+    ]}},
+    # invalid field tuple:
+    {"purpose": "primary", "version": 2, "records":{"RecA":[
+        ["user", "fieldname", "fieldvalue"],
+    ]}},
+    # invalid field tuple:
+    {"purpose": "primary", "version": 2, "records":{"RecA":[
+        ["user", "fieldname", "fieldvalue", 12356, "ERROR"],
+    ]}},
+       
 ]
 
 @pytest.mark.parametrize("obj", invalid_json_objs)

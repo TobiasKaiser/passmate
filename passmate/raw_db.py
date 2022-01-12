@@ -28,16 +28,56 @@ class RawDatabaseJSONEncoder(json.JSONEncoder):
 class RawDatabase:
 
     json_schema = {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$schema": "http://json-schema.org/draft-07/schema",
         "title": "Passmate database schema",
         "type": "object",
         "properties": {
+            "version":{
+                "description":"Passmate database version",
+                "const":2
+            },
             "purpose": {
                 "description": "Distinguish between primary database and sync copy",
-                "type": "string"
+                "enum":["primary", "sync_copy"]
+            },
+            "records": {
+                "type": "object",
+                "patternProperties": {
+                    "": {
+                        "type": "array",
+                        "description": "Array of field tuples",
+                        "items": {
+                            "type": "array",
+                            "description": "Field tuple",
+                            "items": [
+                                {
+                                    "type": "string",
+                                    "description": "Field domain",
+                                    "enum":["user", "meta"]
+                                },
+                                {
+                                    "type": "string",
+                                    "description": "Field name"
+                                },
+                                {
+                                    "type": "string",
+                                    "description": "Field value"
+                                },
+                                {
+                                    "type": "integer",
+                                    "description": "Modification time"
+                                },
+                            ],
+                            "additionalItems":False,
+                            "minItems":4,
+                            "maxItems":4
+                        }
+                    }
+                }
             }
         }, 
-        "required": ["purpose", "records", "version"]
+        "required": ["purpose", "records", "version"],
+        "additionalProperties": False
     }
 
     def __init__(self):
