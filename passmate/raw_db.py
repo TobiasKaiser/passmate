@@ -99,13 +99,10 @@ class RawDatabase:
     @classmethod
     def from_json(cls, json_str):
         obj = json.loads(json_str)
-
         jsonschema.validate(instance=obj, schema=cls.json_schema)
 
         db = RawDatabase()
         
-        assert obj["version"] == 2
-        # TODO: Replace this with JSON schema checking
         if obj["purpose"] == "sync_copy":
             db.is_sync_copy = True
 
