@@ -27,78 +27,6 @@ class SessionException(Exception):
     def __str__(self):
         return str(self.error)
 
-class SessionStarter:
-    """
-    A wrapper for Session that implements locking and database creation.
-
-    A separate lock file is used, as the database file itself is swapped out
-    when it is written. Exclusive locking is done using lockf. The existence of
-    the lock file itself does not consititute a lock.
-    """
-    def __init__(self, config: Config, passphrase: str, init: bool = False):
-        """
-        Args:
-            config: Config object read from user's config.toml
-            passphrase: Passphrase to de- and encrypt database. When init is
-                False, this must match the previously chosen passphrase. When
-                init is True, an initial passphrase must be provided.
-            init: Set to True to create a new database.
-        """
-        self.config = config
-        self.passphrase = passphrase
-        self.init = init
-        self.has_lock = False
-
-    def lock_filename(self):
-        db_fn = self.config.primary_db
-        return db_fn.with_suffix(db_fn.suffix+".lock")
-
-    def acquire_lock(self):
-        assert not self.has_lock
-        self.lockfile = open(self.lock_filename(), "w")
-        fcntl.lockf(self.lockfile, fcntl.LOCK_EX|fcntl.LOCK_NB)
-        self.has_lock = True
-
-    def release_lock(self):
-        assert self.has_lock
-        self.has_lock = False
-        os.unlink(self.lock_filename())
-        self.lockfile.close()
-
-    def __enter__(self):
-        self.acquire_lock()
-        try:
-            if self.init:
-                if self.config.primary_db.exists():
-                    raise SessionException(SessionError.DB_ALREADY_EXISTS)
-                db = RawDatabase()
-            else:
-                try:
-                    data = load_encrypted(self.config.primary_db, self.passphrase)
-                    db = RawDatabase.from_json(data)
-                except scrypt.error as e:
-                    if e.args[0] == "password is incorrect":
-                        raise SessionException(SessionError.WRONG_PASSPHRASE) from e
-                    else:
-                        raise e
-                except FileNotFoundError as e:
-                    raise SessionException(SessionError.DB_DOES_NOT_EXIST) from e
-
-            s = Session(self.config, self.passphrase, db)
-            if self.init:
-                s.save(force=True)
-            return s
-        except:
-            # Make sure that we release the lock if an exception occurs after
-            # acquire_lock:
-            if self.__exit__(*sys.exc_info()):
-                pass
-            else:
-                raise
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.release_lock()
-
 
 def random_key():
     return base64.b16encode(secrets.token_bytes(8)).decode("ascii")
@@ -185,7 +113,7 @@ class Record:
     def update_create(self, path):
         assert self.creation_pending
 
-        init_ft = FieldTuple("meta", "path", path, int(time.time()))
+        init_ft = FieldTuple("meta", "path", path, self.session.time())
         self.load_from_raw_record([init_ft])
         self.add_update(init_ft)
 
@@ -195,7 +123,7 @@ class Record:
         self.update_rename(new_path=None)
 
     def update_rename(self, new_path):
-        ft = FieldTuple("meta", "path", new_path, int(time.time()))
+        ft = FieldTuple("meta", "path", new_path, self.session.time())
         self.add_update(ft)
         self._path = new_path
 
@@ -301,3 +229,96 @@ class Session:
         if update_required or force:
             data = self.db.json()
             save_encrypted(self.config.primary_db, self.passphrase, data)
+
+    def time(self):
+         return int(time.time())
+
+class TimeTestSession(Session):
+    """
+    Like session, but uses a incrementing time variable instead of real UNIX
+    time. For testing purposes only.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.current_time = 0
+
+
+    def time(self):
+        self.current_time+=1
+        return self.current_time
+
+
+class SessionStarter:
+    """
+    A wrapper for Session that implements locking and database creation.
+
+    A separate lock file is used, as the database file itself is swapped out
+    when it is written. Exclusive locking is done using lockf. The existence of
+    the lock file itself does not consititute a lock.
+    """
+    def __init__(self, config: Config, passphrase: str, init: bool = False, session_cls: type = Session):
+        """
+        Args:
+            config: Config object read from user's config.toml
+            passphrase: Passphrase to de- and encrypt database. When init is
+                False, this must match the previously chosen passphrase. When
+                init is True, an initial passphrase must be provided.
+            init: Set to True to create a new database.
+            session_cls: Session class to instantiate. Can be Session or TimeTestSession.
+        """
+        self.config = config
+        self.passphrase = passphrase
+        self.init = init
+        self.has_lock = False
+        self.session_cls = session_cls
+
+    def lock_filename(self):
+        db_fn = self.config.primary_db
+        return db_fn.with_suffix(db_fn.suffix+".lock")
+
+    def acquire_lock(self):
+        assert not self.has_lock
+        self.lockfile = open(self.lock_filename(), "w")
+        fcntl.lockf(self.lockfile, fcntl.LOCK_EX|fcntl.LOCK_NB)
+        self.has_lock = True
+
+    def release_lock(self):
+        assert self.has_lock
+        self.has_lock = False
+        os.unlink(self.lock_filename())
+        self.lockfile.close()
+
+    def __enter__(self):
+        self.acquire_lock()
+        try:
+            if self.init:
+                if self.config.primary_db.exists():
+                    raise SessionException(SessionError.DB_ALREADY_EXISTS)
+                db = RawDatabase()
+            else:
+                try:
+                    data = load_encrypted(self.config.primary_db, self.passphrase)
+                    db = RawDatabase.from_json(data)
+                except scrypt.error as e:
+                    if e.args[0] == "password is incorrect":
+                        raise SessionException(SessionError.WRONG_PASSPHRASE) from e
+                    else:
+                        raise e
+                except FileNotFoundError as e:
+                    raise SessionException(SessionError.DB_DOES_NOT_EXIST) from e
+
+            s = self.session_cls(self.config, self.passphrase, db)
+            if self.init:
+                s.save(force=True)
+            return s
+        except:
+            # Make sure that we release the lock if an exception occurs after
+            # acquire_lock:
+            if self.__exit__(*sys.exc_info()):
+                pass
+            else:
+                raise
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.release_lock()

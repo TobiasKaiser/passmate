@@ -1,11 +1,11 @@
 import pytest
 from passmate.session import SessionStarter, SessionException, SessionError, Record
 
-from .test_session_starter import config
+from .start_session import start_session
 
 
-def test_session_minimal(tmp_path):
-    with SessionStarter(config(tmp_path), passphrase="MyPassphrase", init=True) as session:
+def test_new_del_rename(tmp_path):
+    with start_session(tmp_path, init=True) as session:
         session["test1"] = Record()
         session["delete_me"] = Record()
         session["rename_me"] = Record()
@@ -19,10 +19,5 @@ def test_session_minimal(tmp_path):
 
         session.save()
 
-    with SessionStarter(config(tmp_path), passphrase="MyPassphrase", init=False) as session:
-        for path in session:
-            print(session[path])
-
+    with start_session(tmp_path, init=False) as session:
         assert set(iter(session)) == set(["test1", "test2"])
-        #paths = list(iter(session))
-        #assert len(paths) == 1 and "test" in paths

@@ -18,6 +18,22 @@ Passmate is a simple password manager that stores your secret data (login creden
    sync
    security
 
+
+Todo
+----
+
+- Session: set field values
+- Session: unset field fields
+- Check if there is a FieldTuple with time >= current time on every update.
+- CLI commands
+
+  - ls
+  - new
+  - rename
+  - del
+  - set
+  - unset
+
 Indices and tables
 ==================
 
