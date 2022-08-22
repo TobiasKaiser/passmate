@@ -10,8 +10,8 @@ class Config:
 
     @classmethod
     def default(cls):
-        primary_db_default = str(Path.home() / ".local/share/passmate/local.pmdb")
-        shared_folder_default = str(Path.home() / ".local/share/passmate/sync/")
+        primary_db_default = Path.home() / ".local/share/passmate/local.pmdb"
+        shared_folder_default = Path.home() / ".local/share/passmate/sync/"
         host_id_default = platform.node() # System's hostname
         return cls({
             "primary_db": primary_db_default,
@@ -20,13 +20,13 @@ class Config:
         })
 
     def __init__(self, dict_data):
-        object.__setattr__(self, "primary_db", dict_data["primary_db"])
-        object.__setattr__(self, "shared_folder", dict_data["shared_folder"])
+        object.__setattr__(self, "primary_db", Path(dict_data["primary_db"]))
+        object.__setattr__(self, "shared_folder", Path(dict_data["shared_folder"]))
         object.__setattr__(self, "host_id", dict_data["host_id"])
 
     def dict(self):
         return {
-            "primary_db": self.primary_db,
-            "shared_folder": self.shared_folder,
+            "primary_db": str(self.primary_db),
+            "shared_folder": str(self.shared_folder),
             "host_id": self.host_id,
         }

@@ -2,7 +2,7 @@ import argparse
 import toml
 from pathlib import Path
 from .config import Config
-from .shell import Shell
+from .shell import start_shell
 
 def init_config_if_missing(toml_fn):
     init_config = Config.default().dict()
@@ -19,13 +19,14 @@ def load_config(toml_fn):
     return Config(config_dict)
 
 def main_open(args):
-    print(f"Open {args}!")
     init_config_if_missing(args.config_toml)
     config = load_config(args.config_toml)
-    Shell(config).run()
+    start_shell(config, args.init)
 
 def main_migrate(args):
+    # TODO
     print(f"Migrate {args}!")
+    raise NotImplementedError()
 
 def default_config_fn():
     fn = Path.home() / ".local/share/passmate/config.toml"
@@ -34,6 +35,7 @@ def default_config_fn():
 def main():
     ap = argparse.ArgumentParser(prog="passmate")
     ap.set_defaults(action=main_open)
+    ap.set_defaults(init=False)
     ap.set_defaults(config_toml=default_config_fn())
 
     subparsers = ap.add_subparsers(title="Commands")
@@ -43,6 +45,7 @@ def main():
     parser_open.add_argument("config_toml", nargs="?",
         help="Configuration file",
         default=default_config_fn())
+    parser_open.add_argument("--init", action="store_true")
     parser_open.set_defaults(action=main_open)
     
     parser_migrate = subparsers.add_parser("migrate",
