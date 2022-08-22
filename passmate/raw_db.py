@@ -60,7 +60,7 @@ class RawDatabase:
                                     "description": "Field name"
                                 },
                                 {
-                                    "type": "string",
+                                    "type": ["string", "null"],
                                     "description": "Field value"
                                 },
                                 {
