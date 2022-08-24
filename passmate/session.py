@@ -19,6 +19,7 @@ class SessionError(Enum):
     DB_ALREADY_EXISTS = 1
     DB_DOES_NOT_EXIST = 2
     WRONG_PASSPHRASE = 3
+    UNBOUND_RECORD_ACCESS = 4
 
 class SessionException(Exception):
     def __init__(self, error: SessionError):
@@ -33,8 +34,24 @@ def random_key():
 
 
 class Record:
+    """
+    After instantiating a Record, it must be bound to a Session by assigning it
+    to a session as item::
+
+        s["myrecord"] = Record()
+
+    Before such an assignment, the Record is "unbound" and cannot be used.
+    Internally, this assignment triggers register_session_create, which binds
+    the Record to the Session.
+
+    When Session reads a DB from file, all contained Records are bound using
+    the register_session_load method.
+    """
+
     def __init__(self, record_id=None):
         """
+        
+
         Args:
             record_id: Either an existing ID or None to create a new record with
                 random ID.
@@ -48,40 +65,70 @@ class Record:
         else:
             self.record_id = random_key()
             self.creation_pending = True
-        
-    def register_session(self, session):
-        assert not self.session
-        self.session = session
 
-    def load_from_raw_record(self, raw_record):
         self._path = ""
         self._userdata = {}
-        path_mtime = 0
-        userdata_mtime = {}
-        for ft in raw_record: # Iterate over FieldTuples
-            if ft.domain == "meta":
-                if ft.field_name == "path":
-                    if ft.mtime > path_mtime:
-                        self._path = ft.field_value
-                        path_mtime = ft.mtime
-                else:
-                    assert False
-            elif ft.domain == "user":
-                try:
-                    prev_mtime = userdata_mtime[ft.field_name]
-                except KeyError:
-                    prev_mtime = 0
-                if ft.mtime > prev_mtime:
-                    if ft.field_value:
-                        self._userdata[ft.field_name] = ft.field_value
-                    else:
-                        try:
-                            del self._userdata[ft.field_name]
-                        except KeyError:
-                            pass
-                    userdata_mtime[ft.field_name] = ft.mtime
+        self._path_mtime = 0
+        self._userdata_mtime = {}
+
+        self._bound = False
+    
+
+    def register_session_load(self, session, raw_record):
+        """
+        When reading a DB from file, Session loads and binds records using
+        this method.
+        """
+        assert not self._bound
+        assert not self.creation_pending
+
+        self.session = session
+        for ft in raw_record:
+            self._load_field_tuple(ft)
+
+        self._bound = True
+
+    def register_session_create(self, session, path):
+        """
+        Triggered by Session on assignment to an item, such as::
+
+            s["myrecord"] = Record()
+        """
+        assert not self._bound
+        assert self.creation_pending
+        
+        self.session = session
+        init_ft = FieldTuple("meta", "path", path, self.session.time())
+        self._load_field_tuple(init_ft)
+        self.add_update(init_ft)
+
+        self.creation_pending = False
+        self._bound = True
+
+    def _load_field_tuple(self, ft: FieldTuple):
+        if ft.domain == "meta":
+            if ft.field_name == "path":
+                if ft.mtime > self._path_mtime:
+                    self._path = ft.field_value
+                    self._path_mtime = ft.mtime
             else:
                 assert False
+        elif ft.domain == "user":
+            try:
+                prev_mtime = self._userdata_mtime[ft.field_name]
+            except KeyError:
+                prev_mtime = 0
+            if ft.mtime > prev_mtime:
+                if ft.field_value:
+                    self._userdata[ft.field_name] = ft.field_value
+                else:
+                    try:
+                        del self._userdata[ft.field_name]
+                    except KeyError:
+                        pass
+                self._userdata_mtime[ft.field_name] = ft.mtime
+        else:
+            assert False
 
     def __repr__(self):
         return f"Record(path={self.path()}, data={self._userdata})"
@@ -93,9 +140,16 @@ class Record:
         """
         Iterates over use data field names.
         """
+
+        if not self._bound:
+            raise SessionException(SessionError.UNBOUND_RECORD_ACCESS)
+
         return iter(self._userdata)
 
     def __setitem__(self, field_name, value):
+        if not self._bound:
+            raise SessionException(SessionError.UNBOUND_RECORD_ACCESS)
+
         if (field_name in self._userdata) and (self._userdata[field_name] == value):
             return
 
@@ -105,26 +159,23 @@ class Record:
         self.add_update(ft)
 
     def __delitem__(self, field_name):
+        if not self._bound:
+            raise SessionException(SessionError.UNBOUND_RECORD_ACCESS)
+
         del self._userdata[field_name]
 
         ft = FieldTuple("user", field_name, None, self.session.time())
         self.add_update(ft)
 
     def __getitem__(self, field_name):
+        if not self._bound:
+            raise SessionException(SessionError.UNBOUND_RECORD_ACCESS)
+
         return self._userdata[field_name]
 
     def add_update(self, field_tuple: FieldTuple):
         self.session.pending_updates.append(DatabaseUpdate(
             self.record_id, field_tuple))
-
-    def update_create(self, path):
-        assert self.creation_pending
-
-        init_ft = FieldTuple("meta", "path", path, self.session.time())
-        self.load_from_raw_record([init_ft])
-        self.add_update(init_ft)
-
-        self.creation_pending = False
 
     def update_delete(self):
         self.update_rename(new_path=None)
@@ -172,8 +223,7 @@ class Session:
         self._records = {}
         for record_id, raw_record in self.db.records.items():
             r = Record(record_id)
-            r.load_from_raw_record(raw_record)
-            r.register_session(self)
+            r.register_session_load(self, raw_record)
             path = r.path()
             if not path:
                 continue
@@ -195,8 +245,7 @@ class Session:
         assert len(path) > 0
 
         if rec.creation_pending:
-            rec.register_session(self)
-            rec.update_create(path)
+            rec.register_session_create(self, path)
             assert rec.path() == path
             self._records[path] = rec
         else:

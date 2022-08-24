@@ -50,3 +50,15 @@ def test_set_unset(tmp_path):
         assert set(iter(session["MyRec"])) == set(["field1", "field2"])
         assert session["MyRec"]["field1"] == "value1"
         assert session["MyRec"]["field2"] == "NewValue"
+
+def test_unbound_record(tmp_path):
+    with start_session(tmp_path, init=True) as session:
+        r = Record()
+        with pytest.raises(SessionException, match="SessionError.UNBOUND_RECORD_ACCESS"):
+            r["field1"] = "hello"
+        with pytest.raises(SessionException, match="SessionError.UNBOUND_RECORD_ACCESS"):
+            iter(r)
+        with pytest.raises(SessionException, match="SessionError.UNBOUND_RECORD_ACCESS"):
+            del r["fieldX"]
+        with pytest.raises(SessionException, match="SessionError.UNBOUND_RECORD_ACCESS"):
+            r["fieldX"]
