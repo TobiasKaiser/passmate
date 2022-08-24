@@ -22,7 +22,7 @@ Passmate is a simple password manager that stores your secret data (login creden
 Todo
 ----
 
-- Check if there is a FieldTuple with time >= current time on every update.
+- Hierarchy functionality
 - CLI commands
 
   - ls
@@ -31,6 +31,8 @@ Todo
   - del
   - set
   - unset
+
+- Handling merges
 
 Indices and tables
 ==================

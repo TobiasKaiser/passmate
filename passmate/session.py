@@ -20,6 +20,7 @@ class SessionError(Enum):
     DB_DOES_NOT_EXIST = 2
     WRONG_PASSPHRASE = 3
     UNBOUND_RECORD_ACCESS = 4
+    MTIME_IN_THE_FUTURE = 5
 
 class SessionException(Exception):
     def __init__(self, error: SessionError):
@@ -100,7 +101,7 @@ class Record:
         self.session = session
         init_ft = FieldTuple("meta", "path", path, self.session.time())
         self._load_field_tuple(init_ft)
-        self.add_update(init_ft)
+        self._add_update(init_ft)
 
         self.creation_pending = False
         self._bound = True
@@ -114,11 +115,7 @@ class Record:
             else:
                 assert False
         elif ft.domain == "user":
-            try:
-                prev_mtime = self._userdata_mtime[ft.field_name]
-            except KeyError:
-                prev_mtime = 0
-            if ft.mtime > prev_mtime:
+            if ft.mtime > self.field_mtime(ft.field_name):
                 if ft.field_value:
                     self._userdata[ft.field_name] = ft.field_value
                 else:
@@ -129,6 +126,12 @@ class Record:
                 self._userdata_mtime[ft.field_name] = ft.mtime
         else:
             assert False
+
+    def field_mtime(self, field_name):
+        try:
+            return self._userdata_mtime[field_name]
+        except KeyError:
+            return 0
 
     def __repr__(self):
         return f"Record(path={self.path()}, data={self._userdata})"
@@ -153,19 +156,14 @@ class Record:
         if (field_name in self._userdata) and (self._userdata[field_name] == value):
             return
 
-        self._userdata[field_name] = value
+        self._update_set_field(field_name, value)
 
-        ft = FieldTuple("user", field_name, value, self.session.time())
-        self.add_update(ft)
 
     def __delitem__(self, field_name):
         if not self._bound:
             raise SessionException(SessionError.UNBOUND_RECORD_ACCESS)
 
-        del self._userdata[field_name]
-
-        ft = FieldTuple("user", field_name, None, self.session.time())
-        self.add_update(ft)
+        self._update_set_field(field_name, None)
 
     def __getitem__(self, field_name):
         if not self._bound:
@@ -173,7 +171,7 @@ class Record:
 
         return self._userdata[field_name]
 
-    def add_update(self, field_tuple: FieldTuple):
+    def _add_update(self, field_tuple: FieldTuple):
         self.session.pending_updates.append(DatabaseUpdate(
             self.record_id, field_tuple))
 
@@ -181,10 +179,29 @@ class Record:
         self.update_rename(new_path=None)
 
     def update_rename(self, new_path):
-        ft = FieldTuple("meta", "path", new_path, self.session.time())
-        self.add_update(ft)
+        cur_time = self.session.time()
+        if cur_time <= self._path_mtime:
+            raise SessionException(SessionError.MTIME_IN_THE_FUTURE)
+        
+        ft = FieldTuple("meta", "path", new_path, cur_time)
+        self._add_update(ft)
+        
+        self._path_mtime = cur_time
         self._path = new_path
 
+    def _update_set_field(self, field_name, value):
+        cur_time = self.session.time()
+        if cur_time <= self.field_mtime(field_name):
+            raise SessionException(SessionError.MTIME_IN_THE_FUTURE)
+
+        ft = FieldTuple("user", field_name, value, cur_time)
+        self._add_update(ft)
+
+        if value:
+            self._userdata[field_name] = value
+        else:
+            del self._userdata[field_name]
+        self._userdata_mtime[field_name] = cur_time
 
 class Session:
     """

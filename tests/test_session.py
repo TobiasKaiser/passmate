@@ -51,14 +51,32 @@ def test_set_unset(tmp_path):
         assert session["MyRec"]["field1"] == "value1"
         assert session["MyRec"]["field2"] == "NewValue"
 
-def test_unbound_record(tmp_path):
+def test_unbound_record(tmp_path): 
+    r = Record()   
+    with pytest.raises(SessionException, match="SessionError.UNBOUND_RECORD_ACCESS"):
+        r["field1"] = "hello"
+    with pytest.raises(SessionException, match="SessionError.UNBOUND_RECORD_ACCESS"):
+        iter(r)
+    with pytest.raises(SessionException, match="SessionError.UNBOUND_RECORD_ACCESS"):
+        del r["fieldX"]
+    with pytest.raises(SessionException, match="SessionError.UNBOUND_RECORD_ACCESS"):
+        r["fieldX"]
+
+def test_mtime_in_the_future(tmp_path):
     with start_session(tmp_path, init=True) as session:
-        r = Record()
-        with pytest.raises(SessionException, match="SessionError.UNBOUND_RECORD_ACCESS"):
-            r["field1"] = "hello"
-        with pytest.raises(SessionException, match="SessionError.UNBOUND_RECORD_ACCESS"):
-            iter(r)
-        with pytest.raises(SessionException, match="SessionError.UNBOUND_RECORD_ACCESS"):
-            del r["fieldX"]
-        with pytest.raises(SessionException, match="SessionError.UNBOUND_RECORD_ACCESS"):
-            r["fieldX"]
+        session.current_time = 2000
+        session["test1"] = Record()
+        session["test1"]["field1"] = "hello"
+        session["test1"]["field2"] = "world"
+        session["delete_me"] = Record()
+        session["rename_me"] = Record()
+
+        session.current_time = 1000
+        with pytest.raises(SessionException, match="SessionError.MTIME_IN_THE_FUTURE"):
+            session["new_name"] = session["rename_me"]
+        with pytest.raises(SessionException, match="SessionError.MTIME_IN_THE_FUTURE"):
+            del session["delete_me"]
+        with pytest.raises(SessionException, match="SessionError.MTIME_IN_THE_FUTURE"):
+            session["test1"]["field1"] = "NewValue"
+        with pytest.raises(SessionException, match="SessionError.MTIME_IN_THE_FUTURE"):
+            del session["test1"]["field2"]
