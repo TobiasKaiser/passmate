@@ -21,3 +21,32 @@ def test_new_del_rename(tmp_path):
 
     with start_session(tmp_path, init=False) as session:
         assert set(iter(session)) == set(["test1", "test2"])
+
+def test_set_unset(tmp_path):
+    with start_session(tmp_path, init=True) as session:
+        session["MyRec"] = Record()
+        session["MyRec"]["field1"] = "value1"
+        session["MyRec"]["field2"] = "value2"
+        session["MyRec"]["field2"] = "NewValue"
+        session["MyRec"]["field3"] = "delete_me"
+
+        assert set(iter(session["MyRec"])) == set(["field1", "field2", "field3"])
+        assert session["MyRec"]["field1"] == "value1"
+        assert session["MyRec"]["field2"] == "NewValue"
+        assert session["MyRec"]["field3"] == "delete_me"
+
+        del session["MyRec"]["field3"]
+
+        assert set(iter(session["MyRec"])) == set(["field1", "field2"])
+        assert session["MyRec"]["field1"] == "value1"
+        assert session["MyRec"]["field2"] == "NewValue"
+
+        with pytest.raises(KeyError):
+            session["MyRec"]["field3"]
+
+        session.save()
+
+    with start_session(tmp_path, init=False) as session:
+        assert set(iter(session["MyRec"])) == set(["field1", "field2"])
+        assert session["MyRec"]["field1"] == "value1"
+        assert session["MyRec"]["field2"] == "NewValue"

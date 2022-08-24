@@ -72,19 +72,19 @@ class Record:
                 except KeyError:
                     prev_mtime = 0
                 if ft.mtime > prev_mtime:
-                    self._userdata[ft.field_name] = ft.field_value
+                    if ft.field_value:
+                        self._userdata[ft.field_name] = ft.field_value
+                    else:
+                        try:
+                            del self._userdata[ft.field_name]
+                        except KeyError:
+                            pass
                     userdata_mtime[ft.field_name] = ft.mtime
             else:
                 assert False
 
     def __repr__(self):
         return f"Record(path={self.path()}, data={self._userdata})"
-
-    #def reload(self):
-    #    db = self.session.db
-    #    raw_record = db.records[self.record_id]
-    #    self.load_from_raw_record(raw_record)
-
 
     def path(self) -> str:
         return self._path
@@ -95,16 +95,23 @@ class Record:
         """
         return iter(self._userdata)
 
-    def __setitem__(self, key, value):
-        if (key in self._userdata) and (self._userdata[key] == "value"):
+    def __setitem__(self, field_name, value):
+        if (field_name in self._userdata) and (self._userdata[field_name] == value):
             return
 
-        self._userdata[key] = value
+        self._userdata[field_name] = value
 
-        self.update_setf
+        ft = FieldTuple("user", field_name, value, self.session.time())
+        self.add_update(ft)
 
-    def __getitem__(self, key):
-        return self._userdata[key]
+    def __delitem__(self, field_name):
+        del self._userdata[field_name]
+
+        ft = FieldTuple("user", field_name, None, self.session.time())
+        self.add_update(ft)
+
+    def __getitem__(self, field_name):
+        return self._userdata[field_name]
 
     def add_update(self, field_tuple: FieldTuple):
         self.session.pending_updates.append(DatabaseUpdate(
