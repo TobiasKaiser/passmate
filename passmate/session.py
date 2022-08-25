@@ -10,10 +10,7 @@ import time
 import base64
 
 from .container import save_encrypted, load_encrypted
-from .raw_db import RawDatabase, RawRecord, FieldTuple
-
-DatabaseUpdate = collections.namedtuple(
-    "DatabaseUpdate", ["record_id", "field_tuple"])
+from .raw_db import RawDatabase, RawRecord, FieldTuple, RawDatabaseUpdate
 
 class SessionError(Enum):
     DB_ALREADY_EXISTS = 1
@@ -172,7 +169,7 @@ class Record:
         return self._userdata[field_name]
 
     def _add_update(self, field_tuple: FieldTuple):
-        self.session.pending_updates.append(DatabaseUpdate(
+        self.session.pending_updates.append(RawDatabaseUpdate(
             self.record_id, field_tuple))
 
     def update_delete(self):
@@ -286,10 +283,8 @@ class Session:
     def apply_updates(self):
         updates_applied = 0
         while len(self.pending_updates) > 0:
-            record_id, field_tuple = self.pending_updates.pop()
-            if not record_id in self.db.records:
-                self.db.records[record_id] = RawRecord()
-            self.db.records[record_id].append(field_tuple)
+            u = self.pending_updates.pop()
+            self.db.update(u)
             updates_applied += 1
         return updates_applied > 0
 
@@ -308,7 +303,7 @@ class Session:
 
 class TimeTestSession(Session):
     """
-    Like session, but uses a incrementing time variable instead of real UNIX
+    Like session, but uses an incrementing time variable instead of real UNIX
     time. For testing purposes only.
     """
 

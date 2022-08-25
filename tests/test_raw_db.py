@@ -35,10 +35,10 @@ def test_decode_json(purpose):
         "purpose": purpose,
         "records": {
             "RecordA":[
-                ["user", "email", "invalid@example.com", 123],
-                ["user", "password", "abcd", 124],
+                ["user", "password", None, 5679],
                 ["user", "password", "xyz", 5678],
-                ["user", "password", None, 5678]
+                ["user", "password", "abcd", 124],
+                ["user", "email", "invalid@example.com", 123],
             ],
             "RecordB":[
                 ["meta", "path", "MyTestPath", 123456],
