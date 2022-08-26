@@ -22,8 +22,13 @@ class Config:
     def __init__(self, dict_data):
         if "primary_db" in dict_data:
             object.__setattr__(self, "primary_db", Path(dict_data["primary_db"]))
+        else:
+            object.__setattr__(self, "primary_db", None)
         if "shared_folder" in dict_data:
             object.__setattr__(self, "shared_folder", Path(dict_data["shared_folder"]))
+        else:
+            object.__setattr__(self, "shared_folder", None)
+
         if "host_id" in dict_data:
             object.__setattr__(self, "host_id", dict_data["host_id"])
 
