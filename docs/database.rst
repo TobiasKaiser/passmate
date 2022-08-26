@@ -71,4 +71,41 @@ TODO: How do we resolve this? Renaming the path of one of the two records to a n
 File locking
 ------------
 
-Primary database files should not be opened by more than one process at a time. File locking is implemented to prevent this from happening. A separate lock file is created and fcntl.lockf is used to aquire an exclusive lock on the lock file. The lock is removed when Passmate is closed.
+Primary database files should not be opened by more than one process at a time. File locking prevents this. A separate lock file is created and fcntl.lockf is used to aquire an exclusive lock on the lock file. The lock is removed when Passmate is closed.
+
+Future version
+--------------
+
+The fact that records are represented using a JSON hierarchy layer, but fields are modelling using a flat array, can be seen as a logical weakness of the current database. It does not affect security, but could be improved upon. A future version of the JSON database could be either entirely flat or use hierarchy (JSON objects) for records and fields.
+
+Proposed JSON format (entirely flat)::
+
+    {
+        "version": 3,
+        "purpose": "primary",
+        "records": [
+            ["MyRecordId", "meta", "path", "record_path", 12345],
+            ["MyRecordId", user", "password", "thisismypassword", 67890]
+        ]
+    }
+
+Proposed JSON format (hierarchical records and fields)::
+
+    {
+        "version": 3,
+        "purpose": "primary",
+        "records": {
+            "MyRecordId": {
+                "meta":{
+                    "path":[
+                        ["record_path", 12345]
+                    ]
+                },
+                "user":{
+                    "password":[
+                        ["thisismypassword", 67890]
+                    ]
+                }
+            }
+        }
+    }
