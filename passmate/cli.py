@@ -6,6 +6,8 @@ from .shell import start_shell
 from .migrate_v1 import migrate
 
 def init_config_if_missing(toml_fn):
+    Path(toml_fn).parent.mkdir(parents=True, exist_ok=True)
+
     init_config = Config.default().dict()
     try:
         with open(toml_fn, "x") as f:

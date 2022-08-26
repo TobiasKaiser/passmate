@@ -434,6 +434,7 @@ class Session:
 
     def _save_sync_copy(self):
         if self.config.shared_folder and self.config.host_id:
+            self.config.shared_folder.mkdir(parents=True, exist_ok=True)
             sync_copy_filename = self.config.shared_folder / f"{self.config.host_id}.pmdb"
             sync_copy_data = self.db.json(purpose="sync_copy")
             save_encrypted(sync_copy_filename, self.passphrase, sync_copy_data)
