@@ -22,6 +22,10 @@ Passmate is a simple password manager that stores your secret data (login creden
 Todo
 ----
 
+- Improve docs
+- Built-in help
+- Generate passwords (gen command)
+- Mask passwords after showing them
 - Better reporting of SyncSummary
 - Test syncing
 - Test shell
