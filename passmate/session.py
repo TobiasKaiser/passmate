@@ -253,6 +253,11 @@ class Session:
         self.reload_counter = 0
         self.tree = PathTree(self)
 
+
+    def set_passphrase(self, passphrase):
+        self.passphrase = passphrase
+        self.save_required = True
+
     def invalidate(self):
         """
         Invalidates internal representation, including all Records and the PathTree.

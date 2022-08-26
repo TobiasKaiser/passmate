@@ -274,6 +274,26 @@ class CmdUnset(Command):
         except KeyError:
             print(f"Field \"{field_name}\" not found.")
 
+class CmdChangePassphrase(Command):
+    name = "change_passphrase"
+
+    def context_check(self):
+        return self.shell.cur_path == None
+
+    def handle(self, args):
+        if len(args) > 0:
+            print("?")
+            return
+
+        db_filename = self.session.config.primary_db
+
+        if read_passphrase(db_filename, open=False) != self.session.passphrase:
+            print("Wrong passphrase.")
+            return
+
+        new_passphrase = read_set_passphrase(db_filename, initial=False)
+        self.session.set_passphrase(new_passphrase)
+        print("Passphrase updated.")
 
 class Shell:
     """
@@ -293,6 +313,7 @@ class Shell:
         CmdShow,
         CmdSet,
         CmdUnset,
+        CmdChangePassphrase,
     ]
 
     def __init__(self, session: Session):
@@ -394,19 +415,30 @@ class Shell:
                 running=False
 
 
-def read_init_passphrase(filename):
+def read_set_passphrase(filename, initial:bool):
+    if initial:
+        prompt1 = f'Passphrase to create {filename}: '
+        prompt2 = f'Repeat passphrase to create {filename}: '
+    else:
+        prompt1 = f'Set new passphrase for {filename}: '
+        prompt2 = f'Repeat new passphrase for {filename}: '
+
     passphrases_match = False
     while not passphrases_match:
-        passphrase1 = getpass.getpass(f'Passphrase to create {filename}: ')
-        passphrase2 = getpass.getpass(f'Repeat passphrase to create {filename}: ')
+        passphrase1 = getpass.getpass(prompt1)
+        passphrase2 = getpass.getpass(prompt2)
         passphrases_match = (passphrase1 == passphrase2)
         if not passphrases_match:
             print("Passphrases do not match. Please try again.")
             print()
     return passphrase1
 
-def read_passphrase(filename):
-    return getpass.getpass(f'Passphrase to open {filename}: ')
+def read_passphrase(filename, open:bool):
+    if open:
+        prompt = f'Passphrase to open {filename}: '
+    else:
+        prompt = f'Enter current passphrase for {filename}: '
+    return getpass.getpass(prompt)
 
 def start_shell(config, init) -> Shell:
     """
@@ -420,12 +452,12 @@ def start_shell(config, init) -> Shell:
             if config.primary_db.exists():
                 print("--init specified with database already present.")
                 return
-            passphrase = read_init_passphrase(config.primary_db)
+            passphrase = read_set_passphrase(config.primary_db, initial=True)
         else:
             if not config.primary_db.exists():
                 print("Database not found. Pass --init to create new database.")
                 return
-            passphrase = read_passphrase(config.primary_db)
+            passphrase = read_passphrase(config.primary_db, open=True)
         try:
             with SessionStarter(config, passphrase, init) as session:
                 shell = Shell(session)
