@@ -2,7 +2,7 @@ import pytest
 import json
 import jsonschema
 
-from passmate.raw_db import RawDatabase, RawRecord, FieldTuple, DatabaseException
+from passmate.raw_db import RawDatabase, RawRecord, FieldTuple, DatabaseException, RawDatabaseUpdate
 
 
 @pytest.mark.parametrize("purpose", ["primary", "sync_copy"])
@@ -111,3 +111,36 @@ def test_invalid_json(obj):
     obj_json = json.dumps(obj)
     with pytest.raises(jsonschema.exceptions.ValidationError):
         db = RawDatabase.from_json(obj_json)
+
+
+def test_record_update():
+    db = RawDatabase()
+    db.update(RawDatabaseUpdate('RecordA', FieldTuple('meta', 'path', 'Hello', 50)), must_create_record=True)
+    db.update(RawDatabaseUpdate('RecordA', FieldTuple('user', 'username', 'myName', 100)), cannot_create_record=False)
+    db.update(RawDatabaseUpdate('RecordA', FieldTuple('user', 'email', 'invalid@exmaple.com', 100)), cannot_create_record=True)
+    db.update(RawDatabaseUpdate('RecordA', FieldTuple('user', 'comment', 'HelloWorld', 100)), cannot_create_record=True)
+    db.update(RawDatabaseUpdate('RecordA', FieldTuple('user', 'password', 'ThisIsSecret', 100)), cannot_create_record=True)
+    db.update(RawDatabaseUpdate('RecordA', FieldTuple('meta', 'path', 'MyPath', 100)), cannot_create_record=True)
+    db.update(RawDatabaseUpdate('RecordA', FieldTuple('user', 'path', 'ThisUserFieldIsNamedPath', 100)), cannot_create_record=True)
+    db.update(RawDatabaseUpdate('RecordA', FieldTuple('user', 'username', 'myNewName', 150)), cannot_create_record=True)
+    db.update(RawDatabaseUpdate('RecordA', FieldTuple('user', 'username', 'myName', 200)), cannot_create_record=True)
+
+    db.update(RawDatabaseUpdate('RecordB', FieldTuple('user', 'username', 'test', 200)))
+
+    with pytest.raises(DatabaseException, match="called with must_created_record, but record already exists."):
+        db.update(RawDatabaseUpdate('RecordB', FieldTuple('user', 'username', 'oops', 300)), must_create_record=True)
+
+    with pytest.raises(DatabaseException, match="called with cannot_create_record, but record does not exist."):
+        db.update(RawDatabaseUpdate('RecordC', FieldTuple('user', 'username', 'oops', 400)), cannot_create_record=True)
+
+    with pytest.raises(DatabaseException, match="two identical field tuples with same mtime."):
+        db.update(RawDatabaseUpdate('RecordA', FieldTuple('user', 'username', 'myName', 100)))
+
+    with pytest.raises(DatabaseException, match="two identical field tuples with same mtime."):
+        db.update(RawDatabaseUpdate('RecordA', FieldTuple('user', 'password', 'ThisIsSecret', 100)))
+
+    with pytest.raises(DatabaseException, match="two different field tuples with same mtime."):
+        db.update(RawDatabaseUpdate('RecordA', FieldTuple('user', 'password', 'NewPassword', 100)))    
+
+    with pytest.raises(DatabaseException, match="two different field tuples with same mtime."):
+        db.update(RawDatabaseUpdate('RecordA', FieldTuple('user', 'email', 'NewEmail', 100)))    

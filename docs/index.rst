@@ -22,13 +22,6 @@ Passmate is a simple password manager that stores your secret data (login creden
 Todo
 ----
 
-- RawRecord.update improvements
-
-  - allow mtime duplicates with different (domain, field_name) values.
-  - requires iteration over multiple elements
-  - duplicate mtime is only a problem if field tuple names are also the same
-  - maybe do not rely of bisect's key= argument (new in python 3.10)
-
 - Test merges
   
   - handle path collisions

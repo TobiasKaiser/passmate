@@ -10,7 +10,8 @@ class DatabaseException(Exception):
 RawDatabaseUpdate = collections.namedtuple(
     "RawDatabaseUpdate", ["record_id", "field_tuple"])
 
-
+# Do not use functools.total_ordering here, as FieldTuple's native __eq__ from
+# dataclass is needed to check for equality of all values, not just mtime.
 @dataclass(frozen=True)
 class FieldTuple:
     domain: str
@@ -21,6 +22,15 @@ class FieldTuple:
     def json(self):
         return (self.domain, self.field_name, self.field_value, self.mtime)
 
+    def __int__(self):
+        """For sorting by INVERSE mtime"""
+        return -self.mtime
+
+    # Apparently, only __lt__ is needed for bisect to work.
+    def __lt__(self, other):
+        return int(self) < int(other)
+
+
 class RawRecord(list):
     def update(self, field_tuple: FieldTuple, ignore_existing: bool) -> bool:
         """
@@ -30,22 +40,34 @@ class RawRecord(list):
             True when field_tuple was inserted, False if it was not inserted
             (only possible when ignore_existing was set to True).
         """
-        idx = bisect.bisect_left(self, -field_tuple.mtime, key=lambda ft: -ft.mtime)
-        try:
+
+        # bisect here depends on the custom __lt__ of FieldTuple.
+        # bisect's key paramater would be a cleaner solution.
+        # I have decided against it though, because it requires Python 3.10.
+        insertion_point = bisect.bisect_left(self, -field_tuple.mtime)
+
+        # Check for duplicates:
+        idx = insertion_point
+        while idx < len(self) and self[idx].mtime == field_tuple.mtime:
             possible_duplicate = self[idx]
-        except IndexError:
-            pass
-        else:
-            if possible_duplicate.mtime == field_tuple.mtime:
+            # Duplicate mtime is only a problem when field tuple name and
+            # domain match.
+            same_field_name = (possible_duplicate.field_name == field_tuple.field_name)
+            same_domain = (possible_duplicate.domain == field_tuple.domain)
+            if same_field_name and same_domain:
                 if possible_duplicate == field_tuple:
                     if ignore_existing:
                         return False # ignore, do not insert duplicate again.
                     else:
                         raise DatabaseException("Attempt to insert two identical field tuples with same mtime.")
                 else:
+                    assert possible_duplicate.field_value != field_tuple.field_value
                     raise DatabaseException("Attempt to insert two different field tuples with same mtime.")
+            idx+=1
         
-        self.insert(idx, field_tuple)
+        # FieldTuple is inserted unless we had a duplicate that raised a
+        # DatabaseException or returned False.
+        self.insert(insertion_point, field_tuple)
         return True
 
 class RawDatabaseJSONEncoder(json.JSONEncoder):

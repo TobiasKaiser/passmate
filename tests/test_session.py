@@ -45,7 +45,6 @@ def test_set_unset(tmp_path):
             session["MyRec"]["field3"]
 
         session.save()
-        print(session.db.json())
 
     with start_session(tmp_path, init=False) as session:
         assert set(iter(session["MyRec"])) == set(["field1", "field2"])
