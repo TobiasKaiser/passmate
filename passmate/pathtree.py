@@ -57,6 +57,9 @@ class TreeFormatterFancy(TreeFormatter):
         else:
             return "│ "
 
+def match_case_insensitive(input, search_term):
+    return input.lower().find(search_term.lower()) >= 0
+
 class Directory:
     def __init__(self, parent):
         self.parent = parent
@@ -70,9 +73,19 @@ class Directory:
         for path in self.records.values():
             # We use self.records.values() instead of just self.records.keys() here
             # to allow search terms that cross directory levels (e. g. "path/record"). 
-            if path.find(search_term) >= 0:
+            if match_case_insensitive(path, search_term):
                 return True
         return False
+
+    def filtered_records(self, search_term):
+        for name, path in self.records.items():
+            if match_case_insensitive(path, search_term):
+                yield name
+
+    def filtered_subdirs(self, search_term):
+        for name, subdir in self.subdirs.items():
+            if subdir.contains(search_term):
+                yield name, subdir
 
     def tree_str(self, fmt: TreeFormatter, search_term: str="", prefix: str=None):
         """
@@ -87,18 +100,16 @@ class Directory:
             if r:
                 yield r
 
-        if not self.contains(search_term):
-            return
-
-        for idx, (name, subdir) in enumerate(self.subdirs.items()):
-            last = (idx == len(self.subdirs)-1) and len(self.records)==0
-            
+        filtered_subdirs = list(self.filtered_subdirs(search_term))
+        filtered_records = list(self.filtered_records(search_term))
+        
+        for idx, (name, subdir) in enumerate(filtered_subdirs):
+            last = (idx == len(filtered_subdirs)-1) and len(filtered_records)==0
             yield f"{prefix}{fmt.directory(last)} {name}/"
-            
-            fmt_children = fmt.dir_children(last)
-            yield from subdir.tree_str(fmt, search_term, prefix+fmt_children)
-        for idx, name in enumerate(self.records.keys()):
-            last = (idx == len(self.records)-1)
+            yield from subdir.tree_str(fmt, search_term, prefix+fmt.dir_children(last))
+
+        for idx, name in enumerate(filtered_records):
+            last = (idx == len(filtered_records)-1)
             yield f"{prefix}{fmt.record(last)} {name}"
 
 class PathTree:
