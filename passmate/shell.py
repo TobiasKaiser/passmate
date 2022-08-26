@@ -301,6 +301,20 @@ class CmdChangePassphrase(Command):
         self.session.set_passphrase(new_passphrase)
         print("Passphrase updated.")
 
+class CmdSync(Command):
+    name = "sync"
+
+    def context_check(self):
+        return self.shell.cur_path == None
+
+    def handle(self, args):
+        if len(args) > 0:
+            print("?")
+            return
+
+        summary = self.session.sync()
+        print(summary)
+
 class Shell:
     """
     The Shell class provides a shell-like interface for accessing a
@@ -320,6 +334,7 @@ class Shell:
         CmdSet,
         CmdUnset,
         CmdChangePassphrase,
+        CmdSync,
     ]
 
     def __init__(self, session: Session):

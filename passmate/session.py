@@ -1,14 +1,15 @@
-from .config import Config
 import fcntl
 import os
 import sys
-from enum import Enum
 import scrypt
 import secrets
 import collections
 import time
 import base64
+from enum import Enum
+from pathlib import Path
 
+from .config import Config
 from .container import save_encrypted, load_encrypted
 from .raw_db import RawDatabase, RawRecord, FieldTuple, RawDatabaseUpdate
 from .pathtree import PathTree
@@ -213,6 +214,16 @@ class Record:
             del self._userdata[field_name]
         self._userdata_mtime[field_name] = cur_time
 
+class SyncSummary:
+    def __init__(self):
+        # Key: Path, Value: error message
+        self.failure = {}
+        # Key: Path, Value: list of RawDatabaseUpdates
+        self.success = {}
+
+    def __repr__(self):
+        return f"SyncSummary(failure={self.failure}, success={self.success})"
+
 class Session:
     """
     Use SessionStarter and 'with' to obtain a Session object.
@@ -386,6 +397,47 @@ class Session:
         else:
             return False
 
+    def _sync_single_file(self, summary: SyncSummary, fn: Path):
+        """
+        Loads sync copy from fn and appends result to summary.
+        """
+
+        try:
+            data = load_encrypted(fn, self.passphrase)
+            remote_db = RawDatabase.from_json(data)
+        except scrypt.error as e:
+            if e.args[0] == "password is incorrect":
+                summary.failure[fn] = "Passphrase incorrect."
+                return
+            else:
+                raise e
+
+        updates_applied = self.merge(remote_db)
+        summary.success[fn] = updates_applied
+
+    def sync(self) -> SyncSummary:
+        summary = SyncSummary()
+
+        for fn in self.config.shared_folder.iterdir():
+            if fn.suffix != ".pmdb":
+                continue
+
+            if fn.stem == self.config.host_id:
+                continue # Ignore own output
+
+            self._sync_single_file(summary, fn)
+        return summary
+
+    def _save_primary_db(self):        
+        data = self.db.json()
+        save_encrypted(self.config.primary_db, self.passphrase, data)
+
+    def _save_sync_copy(self):
+        if self.config.shared_folder and self.config.host_id:
+            sync_copy_filename = self.config.shared_folder / f"{self.config.host_id}.pmdb"
+            sync_copy_data = self.db.json(purpose="sync_copy")
+            save_encrypted(sync_copy_filename, self.passphrase, sync_copy_data)
+
     def save(self):
         """
         Saves changes if necessary.
@@ -394,8 +446,9 @@ class Session:
         """
 
         if self.save_required:
-            data = self.db.json()
-            save_encrypted(self.config.primary_db, self.passphrase, data)
+            self._save_primary_db()
+            self._save_sync_copy()
+
             self.save_required = False
             return True
         return False
@@ -483,7 +536,6 @@ class SessionStarter:
             else:
                 try:
                     data = load_encrypted(self.config.primary_db, self.passphrase)
-                    db = RawDatabase.from_json(data)
                 except scrypt.error as e:
                     if e.args[0] == "password is incorrect":
                         raise SessionException(SessionError.WRONG_PASSPHRASE) from e
@@ -491,6 +543,8 @@ class SessionStarter:
                         raise e
                 except FileNotFoundError as e:
                     raise SessionException(SessionError.DB_DOES_NOT_EXIST) from e
+                else:
+                    db = RawDatabase.from_json(data)
 
             return self.session_cls(self.config, self.passphrase, db)
         except:
