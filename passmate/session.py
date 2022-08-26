@@ -250,13 +250,16 @@ class Session:
         self.reload_counter = 0
         self.tree = PathTree(self)
 
-    def invalidate_records(self):
-        if not self._records_valid:
-            return
-
-        for record in self._records.values():
-            record.invalidate()
-        self._records_valid = False
+    def invalidate(self):
+        """
+        Invalidates internal representation, including all Records and the PathTree.
+        """
+        if self._records_valid:
+            for record in self._records.values():
+                record.invalidate()
+            self._records_valid = False
+        
+        self.tree.invalidate()
 
     def reload_records_if_invalid(self, fix_path_collisions:bool=False) -> list[str]:
         """
@@ -333,12 +336,16 @@ class Session:
             self._records[path] = rec
             del self._records[old_path]
 
+        self.tree.invalidate()
+
     def __delitem__(self, path):
         self.reload_records_if_invalid()
 
         rec = self._records[path]
         rec.update_delete()
         del self._records[path]
+
+        self.tree.invalidate()
 
 
     def __getitem__(self, path):
@@ -364,7 +371,7 @@ class Session:
 
         if updated:
             if invalidates_internal_repr:
-                self.invalidate_records()
+                self.invalidate()
             self.save_required = True
             return True
         else:
