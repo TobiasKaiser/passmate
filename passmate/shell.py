@@ -123,11 +123,15 @@ class CmdExit(Command):
         return True
     
     def handle(self, args):
-        if len(args)>0:
+        if not args in ["", "-f"]:
             print("?")
             return
 
-        return True
+        if self.session.save_required and args != "-f":
+            print("Database has unsaved changes. Use 'save' to save changes or 'exit -f' to exit discarding changes.")
+            return False
+        else:
+            return True
 
 class CmdList(Command):
     name = "ls"
