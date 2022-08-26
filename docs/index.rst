@@ -22,7 +22,7 @@ Passmate is a simple password manager that stores your secret data (login creden
 Todo
 ----
 
-- Session syncing based on config (on top of merge functionality)
+- Better reporting of SyncSummary
 - Test syncing
 - Test shell
 

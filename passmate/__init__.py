@@ -1,3 +1,3 @@
 """A simple password manager with synchronization"""
 
-__version__ = "0.1"
+__version__ = "0.2"
