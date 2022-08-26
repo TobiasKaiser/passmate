@@ -321,7 +321,8 @@ class Session:
 
         assert isinstance(rec, Record)
         assert len(path) > 0
-        assert not (path in self._records)
+        if path in self._records:
+            raise SessionException(SessionError.PATH_COLLISION)
 
         if rec.creation_pending:
             rec.register_session_create(self, path)
@@ -380,12 +381,16 @@ class Session:
     def save(self):
         """
         Saves changes if necessary.
+        Returns:
+            True if unsaved changes were saved.
         """
 
         if self.save_required:
             data = self.db.json()
             save_encrypted(self.config.primary_db, self.passphrase, data)
             self.save_required = False
+            return True
+        return False
 
     def merge(self, remote_db: RawDatabase) -> list[RawDatabaseUpdate]:
         """

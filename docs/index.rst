@@ -22,16 +22,19 @@ Passmate is a simple password manager that stores your secret data (login creden
 Todo
 ----
 
-- Hierarchy functionality
 - Session syncing based on config (on top of merge functionality)
+- CLI tab completion
+
+  - for record names
+  - for field names
+
 - CLI commands
 
-  - ls
-  - new
-  - rename
-  - del
+  - show record contents
   - set
   - unset
+
+- Confirm before delete
 
 
 Indices and tables

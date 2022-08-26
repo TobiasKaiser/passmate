@@ -8,7 +8,8 @@ from prompt_toolkit.shortcuts import CompleteStyle
 from prompt_toolkit.filters import completion_is_selected, has_completions
 from prompt_toolkit.key_binding import KeyBindings
 
-from .session import SessionStarter, Session, SessionError, SessionException
+from .session import SessionStarter, Session, Record, SessionError, SessionException
+from .pathtree import TreeFormatterFancy
 
 class PromptCompleter(Completer):
     def __init__(self, shell):
@@ -94,6 +95,10 @@ class Command(metaclass=ABCMeta):
         """
         pass
 
+    @property
+    def session(self) -> Session:
+        return self.shell.session
+
 class CmdSave(Command):
     name = "save"
 
@@ -105,7 +110,10 @@ class CmdSave(Command):
             print("?")
             return
 
-        self.shell.session.save()
+        if self.session.save():
+            print("Changes saved.")
+        else:
+            print("No unsaved changes.")
 
 
 class CmdExit(Command):
@@ -128,8 +136,80 @@ class CmdList(Command):
         return True
 
     def handle(self, args):
-        s = self.shell.session
-        print(s.records)
+        search_term = args
+        print(self.session.tree.tree_str(search_term, TreeFormatterFancy()))
+
+class CmdNew(Command):
+    name = "new"
+
+    def context_check(self):
+        return True
+
+    def handle(self, args):
+        path = args
+        self.session[path] = Record()
+        self.shell.cur_path = path
+        print(f"Record \"{path}\" created.")
+
+class CmdRename(Command):
+    name = "rename"
+
+    def context_check(self):
+        return self.shell.cur_path != None
+
+    def handle(self, args):
+        old_path = self.shell.cur_path
+        new_path = args
+        self.session[new_path] = self.session[old_path]
+        self.shell.cur_path = new_path
+        print(f"Record \"{old_path}\" renamed to \"{new_path}\".")
+
+class CmdOpen(Command):
+    name = "open"
+    is_default = True
+
+    def context_check(self):
+        return self.shell.cur_path == None
+
+    def handle(self, args):
+        path = args
+        if len(path) == 0:
+            return
+        if path in self.session:
+            self.shell.cur_path = path
+        else:
+            print(f"Record \"{path}\" not found.")
+
+class CmdDelete(Command):
+    name = "del"
+
+    def context_check(self):
+        return self.shell.cur_path != None
+
+    def handle(self, args):
+        if len(args)>0:
+            print("?")
+            return
+
+        path = self.shell.cur_path
+        del self.session[path]
+        self.shell.cur_path = None
+        print(f"Record \"{path}\" deleted.")
+
+
+class CmdClose(Command):
+    name = "close"
+    is_default = True
+
+    def context_check(self):
+        return self.shell.cur_path != None
+
+    def handle(self, args):
+        if len(args) > 0:
+            print("?")
+        else:
+            self.shell.cur_path = None
+
 
 class Shell:
     """
@@ -141,6 +221,10 @@ class Shell:
         CmdSave,
         CmdExit,
         CmdList,
+        CmdNew,
+        CmdOpen,
+        CmdClose,
+        CmdDelete,
     ]
 
     def __init__(self, session: Session):
@@ -196,16 +280,18 @@ class Shell:
 
         raise KeyError("Unknown command.")
 
-
     def handle_cmd(self, text):
         try:
-            return self.handle_cmd_named(text)
-        except KeyError:
-            default_cmd = self.default_command()
-            if default_cmd:
-                return default_cmd.handle(text)
-            else:
-                print("?")
+            try:
+                return self.handle_cmd_named(text)
+            except KeyError:
+                default_cmd = self.default_command()
+                if default_cmd:
+                    return default_cmd.handle(text)
+                else:
+                    print("?")
+        except SessionException as exc:
+            print(f"Error: {exc}")
 
     def run(self):
         """starts interactive shell-like session."""
