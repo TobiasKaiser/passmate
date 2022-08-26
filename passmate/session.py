@@ -11,6 +11,7 @@ import base64
 
 from .container import save_encrypted, load_encrypted
 from .raw_db import RawDatabase, RawRecord, FieldTuple, RawDatabaseUpdate
+from .pathtree import PathTree
 
 class SessionError(Enum):
     DB_ALREADY_EXISTS = 1
@@ -247,6 +248,7 @@ class Session:
         self._records = {}
         self._records_valid = False
         self.reload_counter = 0
+        self.tree = PathTree(self)
 
     def invalidate_records(self):
         if not self._records_valid:
