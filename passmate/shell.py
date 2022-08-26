@@ -10,6 +10,7 @@ from prompt_toolkit.key_binding import KeyBindings
 
 from .session import SessionStarter, Session, Record, SessionError, SessionException
 from .pathtree import TreeFormatterFancy
+from .confirm_yes_no import confirm_yes_no
 
 class PromptCompleter(Completer):
     def __init__(self, shell):
@@ -200,6 +201,10 @@ class CmdDelete(Command):
             return
 
         path = self.shell.cur_path
+
+        if not confirm_yes_no(f"Do you want to delete record \"{path}\" (y/n)?"):
+            return
+
         del self.session[path]
         self.shell.cur_path = None
         print(f"Record \"{path}\" deleted.")

@@ -22,8 +22,8 @@ Passmate is a simple password manager that stores your secret data (login creden
 Todo
 ----
 
+- Migrate passmate v1 format
 - Session syncing based on config (on top of merge functionality)
-- Confirm before delete record
 
 
 Indices and tables
