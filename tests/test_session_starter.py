@@ -19,12 +19,13 @@ def test_session_save_and_reopen(tmp_path):
         session.save()
 
 
-def test_session_save_on_init(tmp_path):
+def test_session_no_save_on_init(tmp_path):
     with start_session(tmp_path, init=True) as session:
         pass
 
-    with start_session(tmp_path, init=False) as session:
-        session.save()
+    with pytest.raises(SessionException, match="SessionError.DB_DOES_NOT_EXIST"):
+        with start_session(tmp_path, init=False) as session:
+            pass
 
 def test_db_already_exists(tmp_path):
     with start_session(tmp_path, init=True) as session:

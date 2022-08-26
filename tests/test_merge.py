@@ -4,7 +4,7 @@ import json
 from .start_session import start_session
 
 from passmate.raw_db import RawDatabase, DatabaseException, RawDatabaseUpdate, FieldTuple
-from passmate.session import SessionException
+from passmate.session import SessionException, Record
 
 json_obj_local = {
     "version": 2,
@@ -118,6 +118,7 @@ def test_merge():
 
     #assert db_local.json() == db_expected.json()
 
+
 def test_merge_corrupted():
     db_local = RawDatabase.from_json(json.dumps(json_obj_local))
     db_remote_corrupted = RawDatabase.from_json(json.dumps(json_obj_remote_corrupted))
@@ -144,6 +145,15 @@ def test_merge_session(tmp_path):
         assert set(iter(session)) == set(["NewPath", "MyTestPath", "AnotherRecord"])
         assert session["NewPath"]["username"] == "newName"
         assert session.reload_counter == 2
+
+
+def test_merge_session_minimal(tmp_path):
+    merge_in = RawDatabase()
+    merge_in.update(RawDatabaseUpdate('RecordA', FieldTuple('meta', 'path', 'HelloWorld', 100)))
+    with start_session(tmp_path, init=True) as session:
+        session["asdf"] = Record()
+        session.merge(merge_in)
+        assert set(iter(session)) == set(["HelloWorld", "asdf"])
 
 
 def test_merge_path_collision(tmp_path):

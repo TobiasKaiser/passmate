@@ -2,6 +2,7 @@ import pytest
 
 from .start_session import start_session
 from passmate.session import SessionException, Record
+from passmate.raw_db import RawDatabase, RawDatabaseUpdate, FieldTuple
 
 def test_pathtree(tmp_path):
     with start_session(tmp_path, init=True) as session:
@@ -88,3 +89,21 @@ def test_pathtree(tmp_path):
 
         assert session.tree.tree_str() == expected_tree_str4
         assert session.tree.reload_counter == 4
+
+        # Operation 5: A merge should trigger a tree update.
+
+        merge_in = RawDatabase()
+        merge_in.update(RawDatabaseUpdate('RecordA', FieldTuple('meta', 'path', 'HelloWorld', 100)))
+        session.merge(merge_in)
+
+        expected_tree_str5 = "\n".join([
+            "|",
+            "+-> path1/",
+            "| +-- record3",
+            "| +-- record5",
+            "+-- record1",
+            "+-- renamed_record",
+            "+-- HelloWorld",
+        ])
+        assert session.tree.tree_str() == expected_tree_str5
+        assert session.tree.reload_counter == 5

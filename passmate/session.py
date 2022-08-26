@@ -379,8 +379,7 @@ class Session:
 
     def save(self):
         """
-        Args:
-            force: save even when there are no updates pending.
+        Saves changes if necessary.
         """
 
         if self.save_required:
@@ -480,10 +479,7 @@ class SessionStarter:
                 except FileNotFoundError as e:
                     raise SessionException(SessionError.DB_DOES_NOT_EXIST) from e
 
-            s = self.session_cls(self.config, self.passphrase, db)
-            if self.init:
-                s.save()
-            return s
+            return self.session_cls(self.config, self.passphrase, db)
         except:
             # Make sure that we release the lock if an exception occurs after
             # acquire_lock:
