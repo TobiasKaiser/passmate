@@ -42,31 +42,6 @@ class PromptCompleter(Completer):
         if default_cmd:
             yield from default_cmd.completion_handler(text)
 
-#    def handle_path(self, text):
-#
-#        start_idx=text.rfind("/")
-#
-#        var=text[start_idx+1:]
-#        cur_dir = self.hier.root
-#        if start_idx>=0:
-#            for dirname in text.split("/")[:-1]:
-#                try:
-#                    cur_dir = cur_dir.subdirs[dirname]
-#                except KeyError:
-#                    return
-#        for subdir in cur_dir.subdirs.keys():
-#            subdir=subdir+"/"
-#            if subdir.startswith(var):
-#                yield Completion(subdir, start_position=-len(var), style='fg:ansiblue')
-#        for record in cur_dir.records.keys():
-#            if record.startswith(var):
-#                yield Completion(record, start_position=-len(var))
-#    
-#    def handle_field_name(self, text):
-#        for key in self.shell.cur_rec.fields.keys():
-#            if key.startswith(text):
-#                yield Completion(key, start_position=-len(text))
-
 class Command(metaclass=ABCMeta):
     is_default = False
 
@@ -98,6 +73,31 @@ class Command(metaclass=ABCMeta):
     @property
     def session(self) -> Session:
         return self.shell.session
+
+    def completion_handler_path(self, text):
+        start_idx=text.rfind("/")
+
+        var=text[start_idx+1:]
+        cur_dir = self.session.tree.root
+        if start_idx>=0:
+            for dirname in text.split("/")[:-1]:
+                try:
+                    cur_dir = cur_dir.subdirs[dirname]
+                except KeyError:
+                    return
+        for subdir in cur_dir.subdirs.keys():
+            subdir=subdir+"/"
+            if subdir.startswith(var):
+                yield Completion(subdir, start_position=-len(var), style='fg:ansiblue')
+        for record in cur_dir.records.keys():
+            if record.startswith(var):
+                yield Completion(record, start_position=-len(var))
+
+    def completion_handler_field_name(self, text):
+        rec = self.session[self.shell.cur_path]
+        for key in iter(rec):
+            if key.startswith(text):
+                yield Completion(key, start_position=-len(text))
 
 class CmdSave(Command):
     name = "save"
@@ -145,6 +145,7 @@ class CmdList(Command):
 
 class CmdNew(Command):
     name = "new"
+    completion_handler = Command.completion_handler_path
 
     def context_check(self):
         return True
@@ -157,6 +158,7 @@ class CmdNew(Command):
 
 class CmdRename(Command):
     name = "rename"
+    completion_handler = Command.completion_handler_path
 
     def context_check(self):
         return self.shell.cur_path != None
@@ -171,6 +173,7 @@ class CmdRename(Command):
 class CmdOpen(Command):
     name = "open"
     is_default = True
+    completion_handler = Command.completion_handler_path
 
     def context_check(self):
         return self.shell.cur_path == None
@@ -181,6 +184,7 @@ class CmdOpen(Command):
             return
         if path in self.session:
             self.shell.cur_path = path
+            self.shell.print_current_record()
         else:
             print(f"Record \"{path}\" not found.")
 
@@ -200,7 +204,6 @@ class CmdDelete(Command):
         self.shell.cur_path = None
         print(f"Record \"{path}\" deleted.")
 
-
 class CmdClose(Command):
     name = "close"
     is_default = True
@@ -214,6 +217,63 @@ class CmdClose(Command):
         else:
             self.shell.cur_path = None
 
+class CmdShow(Command):
+    name = "show"
+
+    def context_check(self):
+        return self.shell.cur_path != None
+
+    def handle(self, args):
+        if len(args) > 0:
+            print("?")
+        else:
+            self.shell.print_current_record()
+
+class CmdSet(Command):
+    name = "set"
+    completion_handler = Command.completion_handler_field_name
+
+    def context_check(self):
+        return self.shell.cur_path != None
+
+    def handle(self, args):
+        rec = self.session[self.shell.cur_path]
+
+        field_name = args
+        if len(field_name)==0:
+            print("?")
+            return
+        
+        try:
+            old_value = rec[field_name]
+        except KeyError:
+            old_value = ""
+
+        new_value = prompt("Value: ", default=old_value)
+
+        rec[field_name] = new_value
+
+class CmdUnset(Command):
+    name = "unset"
+    completion_handler = Command.completion_handler_field_name
+
+    def context_check(self):
+        return self.shell.cur_path != None
+
+    def handle(self, args):
+        rec = self.session[self.shell.cur_path]
+
+        field_name = args
+        if len(field_name)==0:
+            print("?")
+            return
+
+        try:
+            del rec[field_name]
+            print(f"Field \"{field_name}\" deleted.")
+        except KeyError:
+            print(f"Field \"{field_name}\" not found.")
+
 
 class Shell:
     """
@@ -226,9 +286,13 @@ class Shell:
         CmdExit,
         CmdList,
         CmdNew,
+        CmdRename,
         CmdOpen,
         CmdClose,
         CmdDelete,
+        CmdShow,
+        CmdSet,
+        CmdUnset,
     ]
 
     def __init__(self, session: Session):
@@ -236,6 +300,20 @@ class Shell:
         self.cur_path = None
 
         self.all_commands = [cls(self) for cls in self.command_classes]
+
+    def print_current_record(self):
+        rec = self.session[self.cur_path]
+        if len(rec)==0:
+            print(f"Record \"{self.cur_path}\" is empty.")
+        else:
+            maxlen = max(map(len, iter(rec)))
+            for field_name in rec:
+                value = rec[field_name]
+                value_multiline = value.split("\n")
+                print(f"{field_name:>{maxlen}}: {value_multiline[0]}")
+                for v in value_multiline[1:]:
+                    nothing=""
+                    print(f"{nothing:>{maxlen}}> {value_multiline}")
 
     def commands(self):
         """

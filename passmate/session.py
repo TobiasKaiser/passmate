@@ -157,6 +157,9 @@ class Record:
 
         return iter(self._userdata)
 
+    def __len__(self) -> int:
+        return len(self._userdata)
+
     def __setitem__(self, field_name, value):
         if not self._bound:
             raise SessionException(SessionError.UNBOUND_RECORD_ACCESS)

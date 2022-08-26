@@ -23,18 +23,7 @@ Todo
 ----
 
 - Session syncing based on config (on top of merge functionality)
-- CLI tab completion
-
-  - for record names
-  - for field names
-
-- CLI commands
-
-  - show record contents
-  - set
-  - unset
-
-- Confirm before delete
+- Confirm before delete record
 
 
 Indices and tables
