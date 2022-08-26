@@ -20,9 +20,12 @@ class Config:
         })
 
     def __init__(self, dict_data):
-        object.__setattr__(self, "primary_db", Path(dict_data["primary_db"]))
-        object.__setattr__(self, "shared_folder", Path(dict_data["shared_folder"]))
-        object.__setattr__(self, "host_id", dict_data["host_id"])
+        if "primary_db" in dict_data:
+            object.__setattr__(self, "primary_db", Path(dict_data["primary_db"]))
+        if "shared_folder" in dict_data:
+            object.__setattr__(self, "shared_folder", Path(dict_data["shared_folder"]))
+        if "host_id" in dict_data:
+            object.__setattr__(self, "host_id", dict_data["host_id"])
 
     def dict(self):
         return {

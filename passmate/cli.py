@@ -3,6 +3,7 @@ import toml
 from pathlib import Path
 from .config import Config
 from .shell import start_shell
+from .migrate_v1 import migrate
 
 def init_config_if_missing(toml_fn):
     init_config = Config.default().dict()
@@ -24,9 +25,7 @@ def main_open(args):
     start_shell(config, args.init)
 
 def main_migrate(args):
-    # TODO
-    print(f"Migrate {args}!")
-    raise NotImplementedError()
+    migrate(args.pmdb_in, args.pmdb_out)
 
 def default_config_fn():
     fn = Path.home() / ".local/share/passmate/config.toml"
