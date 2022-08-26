@@ -1,5 +1,5 @@
 import pytest
-from passmate.session import SessionStarter, SessionException, SessionError, Record
+from passmate.session import SessionException, Record
 
 from .start_session import start_session
 
@@ -17,10 +17,12 @@ def test_new_del_rename(tmp_path):
 
         assert set(iter(session)) == set(["test1", "test2"])
 
+        assert session.reload_counter == 1
         session.save()
 
     with start_session(tmp_path, init=False) as session:
         assert set(iter(session)) == set(["test1", "test2"])
+        assert session.reload_counter == 1
 
 def test_set_unset(tmp_path):
     with start_session(tmp_path, init=True) as session:
@@ -44,12 +46,14 @@ def test_set_unset(tmp_path):
         with pytest.raises(KeyError):
             session["MyRec"]["field3"]
 
+        assert session.reload_counter == 1
         session.save()
 
     with start_session(tmp_path, init=False) as session:
         assert set(iter(session["MyRec"])) == set(["field1", "field2"])
         assert session["MyRec"]["field1"] == "value1"
         assert session["MyRec"]["field2"] == "NewValue"
+        assert session.reload_counter == 1
 
 def test_unbound_record(tmp_path): 
     r = Record()   

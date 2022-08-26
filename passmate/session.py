@@ -18,6 +18,7 @@ class SessionError(Enum):
     WRONG_PASSPHRASE = 3
     UNBOUND_RECORD_ACCESS = 4
     MTIME_IN_THE_FUTURE = 5
+    PATH_COLLISION = 6
 
 class SessionException(Exception):
     def __init__(self, error: SessionError):
@@ -103,6 +104,15 @@ class Record:
         self.creation_pending = False
         self._bound = True
 
+    def invalidate(self):
+        """
+        Invalidating a Record unbinds it from its Session.
+        """
+        assert self.session
+        assert self._bound
+        self._bound = False
+        self.session = None
+
     def _load_field_tuple(self, ft: FieldTuple):
         if ft.domain == "meta":
             if ft.field_name == "path":
@@ -169,8 +179,7 @@ class Record:
         return self._userdata[field_name]
 
     def _add_update(self, field_tuple: FieldTuple):
-        self.session.pending_updates.append(RawDatabaseUpdate(
-            self.record_id, field_tuple))
+        self.session.update(RawDatabaseUpdate(self.record_id, field_tuple), invalidates_internal_repr=False)
 
     def update_delete(self):
         self.update_rename(new_path=None)
@@ -224,29 +233,77 @@ class Session:
             passphrase: Passphrase to de- and encrypt database.
                 At this point, it must be the actual passphrase and cannot be
                 a password entry attempt anymore (handled by SessionStarter).
-            db: RawDatabase read from file or newly initialized RawDatabase.
+            db: RawDatabase read from file or None to initialize a new DB.
         """
         self.config = config
         self.passphrase = passphrase
-        self.db = db
-        self.reload_records()
-        self.pending_updates = []
-        #self.save()
+        if db:
+            self.db = db
+            self.save_required = False
+        else:
+            self.db = RawDatabase()
+            self.save_required = True
 
-    def reload_records(self):
+        self._records = {}
+        self._records_valid = False
+        self.reload_counter = 0
+
+    def invalidate_records(self):
+        if not self._records_valid:
+            return
+
+        for record in self._records.values():
+            record.invalidate()
+        self._records_valid = False
+
+    def reload_records_if_invalid(self, fix_path_collisions:bool=False) -> list[str]:
+        """
+        Args:
+            fix_path_collisions: Fix path collisions. This should only be
+                necessary after a database was merged. The record order in the
+                underlying RawDatabase determines which Record keeps its name
+                and whose Record name is changed. This record oder is more or
+                less arbitrary.
+
+        Returns:
+            List containing new path of each record whose path was fixed.
+            If fix_path_collisions is False, this list is always empty.
+        """
+        if self._records_valid:
+            return []
+
+        fixed_paths = []
         self._records = {}
         for record_id, raw_record in self.db.records.items():
             r = Record(record_id)
             r.register_session_load(self, raw_record)
             path = r.path()
-            if not path:
+            if not path: # Ignore deleted records (path is None / null).
                 continue
+            rename_required = False
+            while path in self._records:
+                path += "_" # Append underscores until we have an unused path.
+                rename_required = True
+            if rename_required:
+                if fix_path_collisions:
+                    r.update_rename(path)
+                    fixed_paths.append(path)
+                else:
+                    raise SessionException(SessionError.PATH_COLLISION)
+            
+            assert not (path in self._records)
             self._records[path] = r
+
+        self._records_valid = True
+        self.reload_counter += 1
+        return fixed_paths
 
     def __iter__(self):
         """
         Iterates over record paths.
         """
+        self.reload_records_if_invalid()
+
         return iter(self._records)
 
     def __setitem__(self, path, rec):
@@ -255,8 +312,11 @@ class Session:
         To rename a record: sess["NewPath"] = sess["OldPath"]
         (old path is automatically deleted)
         """
+        self.reload_records_if_invalid()
+
         assert isinstance(rec, Record)
         assert len(path) > 0
+        assert not (path in self._records)
 
         if rec.creation_pending:
             rec.register_session_create(self, path)
@@ -272,31 +332,66 @@ class Session:
             del self._records[old_path]
 
     def __delitem__(self, path):
+        self.reload_records_if_invalid()
+
         rec = self._records[path]
         rec.update_delete()
         del self._records[path]
 
 
     def __getitem__(self, path):
+        self.reload_records_if_invalid()
+
         return self._records[path]
 
-    def apply_updates(self):
-        updates_applied = 0
-        while len(self.pending_updates) > 0:
-            u = self.pending_updates.pop()
-            self.db.update(u)
-            updates_applied += 1
-        return updates_applied > 0
+    def update(self, u: RawDatabaseUpdate, invalidates_internal_repr) -> bool:
+        """
+        Directly applies the RawDatabaseUpdate u to the underlying RawDatabase.
 
-    def save(self, force=False):
+        Args:
+            u: RawDatabaseUpdate
+            invalidates_internal_repr: True if the update would invalidate the
+                internal _records representation (i. e. merge operation).
+                False, if the internal _records representation remains valid.
+
+        Returns:
+            True, if the change was applied.
+        """
+
+        updated = self.db.update(u, ignore_existing=True)
+
+        if updated:
+            if invalidates_internal_repr:
+                self.invalidate_records()
+            self.save_required = True
+            return True
+        else:
+            return False
+
+    def save(self):
         """
         Args:
             force: save even when there are no updates pending.
         """
-        update_required = self.apply_updates()
-        if update_required or force:
+
+        if self.save_required:
             data = self.db.json()
             save_encrypted(self.config.primary_db, self.passphrase, data)
+            self.save_required = False
+
+    def merge(self, remote_db: RawDatabase) -> list[RawDatabaseUpdate]:
+        """
+        Merge appends changes to pending updates.
+
+        Returns:
+            List of applied updates.
+        """
+
+        proposed_updates = self.db.merge(remote_db)
+        #updated = [self.update(u, invalidates_internal_repr=True) for u in proposed_updates]
+        #return any(updated)
+        applied_updates = list(filter(lambda u: self.update(u, invalidates_internal_repr=True), proposed_updates))
+        return applied_updates
 
     def time(self):
          return int(time.time())
@@ -363,7 +458,7 @@ class SessionStarter:
             if self.init:
                 if self.config.primary_db.exists():
                     raise SessionException(SessionError.DB_ALREADY_EXISTS)
-                db = RawDatabase()
+                db = None # => init
             else:
                 try:
                     data = load_encrypted(self.config.primary_db, self.passphrase)
@@ -378,7 +473,7 @@ class SessionStarter:
 
             s = self.session_cls(self.config, self.passphrase, db)
             if self.init:
-                s.save(force=True)
+                s.save()
             return s
         except:
             # Make sure that we release the lock if an exception occurs after

@@ -32,13 +32,13 @@ class FieldTuple:
 
 
 class RawRecord(list):
-    def update(self, field_tuple: FieldTuple, ignore_existing: bool) -> bool:
-        """
-        Maintains descending ordering by mtime.
 
-        Returns:
-            True when field_tuple was inserted, False if it was not inserted
-            (only possible when ignore_existing was set to True).
+    def would_update(self, field_tuple: FieldTuple, ignore_existing: bool) -> int:
+        """
+        If field_tuple is not yet contained in the RawRecord, the correct
+        insertion point (int) is returned. (The value could be 0.)
+
+        If field_tuple is already present, None is returned.
         """
 
         # bisect here depends on the custom __lt__ of FieldTuple.
@@ -57,18 +57,35 @@ class RawRecord(list):
             if same_field_name and same_domain:
                 if possible_duplicate == field_tuple:
                     if ignore_existing:
-                        return False # ignore, do not insert duplicate again.
+                        return None # ignore, do not insert duplicate again.
                     else:
                         raise DatabaseException("Attempt to insert two identical field tuples with same mtime.")
                 else:
                     assert possible_duplicate.field_value != field_tuple.field_value
                     raise DatabaseException("Attempt to insert two different field tuples with same mtime.")
             idx+=1
-        
+
+        return insertion_point
+
+    def update(self, field_tuple: FieldTuple, ignore_existing: bool) -> bool:
+        """
+        Maintains descending ordering by mtime.
+
+        Returns:
+            True when field_tuple was inserted, False if it was not inserted
+            (only possible when ignore_existing was set to True).
+        """
+
+        insertion_point = self.would_update(field_tuple, ignore_existing)
+
         # FieldTuple is inserted unless we had a duplicate that raised a
-        # DatabaseException or returned False.
-        self.insert(insertion_point, field_tuple)
-        return True
+        # DatabaseException or returned None as insertion point.
+
+        if insertion_point == None:
+            return False
+        else:
+            self.insert(insertion_point, field_tuple)
+            return True
 
 class RawDatabaseJSONEncoder(json.JSONEncoder):
     def default(self, o):
@@ -190,6 +207,15 @@ class RawDatabase:
 
         return self.records[u.record_id].update(u.field_tuple, ignore_existing=ignore_existing)
 
+    def would_update(self, u:RawDatabaseUpdate, ignore_existing=False):
+        try:
+            rec = self.records[u.record_id]
+        except KeyError:
+            return True
+        else:
+            insertion_point = self.records[u.record_id].would_update(u.field_tuple, ignore_existing)
+            return insertion_point != None
+
     def to_updates(self):
         """
         Generator of RawDatabaseUpdate objects, which can be used to merge
@@ -199,16 +225,19 @@ class RawDatabase:
             for field_tuple in field_tuples:
                 yield RawDatabaseUpdate(record_id, field_tuple)
 
-    def merge(self, other):
+    def merge(self, other) -> list[RawDatabaseUpdate]:
         """
-        Merges the RawDatabase other in the RawDatabase on which the method was
-        called.
+        Returns a list of the RawDatabaseUpdates, which must be applied to the
+        RawDatabase in order to merge the RawDatabase other into the RawDatabase
+        on which this method was called.
+
+        Args:
+            other: another RawDatabase object.
 
         Returns:
-            A list of all applied RawDatabaseUpdates.
+            List of RawDatabaseUpdates.
         """
-        applied_updates = []
-        for u in other.to_updates():
-            if self.update(u, ignore_existing=True):
-                applied_updates.append(u)
-        return applied_updates
+        return list(filter(
+            lambda u: self.would_update(u, ignore_existing=True),
+            other.to_updates()
+            ))
