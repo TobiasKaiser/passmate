@@ -1,6 +1,5 @@
 import collections
 from abc import ABC, ABCMeta, abstractmethod
-
 from prompt_toolkit import prompt, PromptSession
 from prompt_toolkit.completion import Completer, Completion
 from prompt_toolkit.shortcuts import CompleteStyle
@@ -10,8 +9,8 @@ from prompt_toolkit.key_binding import KeyBindings
 from .session import SessionStarter, Session, Record, SessionError, SessionException
 from .pathtree import TreeFormatterFancy
 from .confirm_yes_no import confirm_yes_no
-
 from .read_passphrase import read_set_passphrase, read_passphrase
+from .busy_spinner import busy_spinner
 
 class PromptCompleter(Completer):
     def __init__(self, shell):
@@ -111,8 +110,9 @@ class CmdSave(Command):
         if len(args)>0:
             print("?")
             return
-
-        if self.session.save():
+        if self.session.save_required:
+            with busy_spinner():
+                self.session.save()
             print("Changes saved.")
         else:
             print("No unsaved changes.")
@@ -312,7 +312,8 @@ class CmdSync(Command):
             print("?")
             return
 
-        summary = self.session.sync()
+        with busy_spinner():
+            summary = self.session.sync()
         print(summary)
 
 class Shell:
