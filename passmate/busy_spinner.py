@@ -3,26 +3,40 @@ import time
 import sys
 from contextlib import contextmanager
 
-def print_spinner(event):
-    delay=0.1
-    while True:
-        for x in ['-', '\\', '|', '/']:
-            sys.stdout.write(f"\r{x}")
-            sys.stdout.flush()
-            if event.wait(timeout=delay):
-                sys.stdout.write("\r \r")
+class BusySpinner:
+    def print_spinner(self):
+        delay=0.1
+        while True:
+            for x in ['-', '\\', '|', '/']:
+                sys.stdout.write(f"\r{x}")
                 sys.stdout.flush()
-                return
+                if self.event.wait(timeout=delay):
+                    sys.stdout.write("\r \r")
+                    sys.stdout.flush()
+                    return
 
-@contextmanager
-def busy_spinner():
-    event = threading.Event()
-    t = threading.Thread(target=print_spinner, args=(event,))
-    t.start()
-    yield
-    event.set()
-    t.join()
+    def __init__(self):
+        self.event = None
+        self.thread = None
+
+    def start(self):
+        assert not self.event
+        self.event = threading.Event()
+        self.thread = threading.Thread(target=self.print_spinner)
+        self.thread.start()
+
+    def end(self):
+        if self.event:
+            self.event.set()
+            self.thread.join()
+        self.event = None
+
+    def __enter__(self):
+        self.start()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.end()
 
 if __name__=="__main__":
-    with busy_spinner():
+    with BusySpinner():
         time.sleep(3)

@@ -10,7 +10,7 @@ from .session import SessionStarter, Session, Record, SessionError, SessionExcep
 from .pathtree import TreeFormatterFancy
 from .confirm_yes_no import confirm_yes_no
 from .read_passphrase import read_set_passphrase, read_passphrase
-from .busy_spinner import busy_spinner
+from .busy_spinner import BusySpinner
 
 class PromptCompleter(Completer):
     def __init__(self, shell):
@@ -111,7 +111,7 @@ class Command(metaclass=ABCMeta):
 #             print("?")
 #             return
 #         if self.session.save_required:
-#             with busy_spinner():
+#             with BusySpinner():
 #                 self.session.save()
 #             print("Changes saved.")
 #         else:
@@ -155,7 +155,7 @@ class CmdNew(Command):
         path = args
         self.session[path] = Record()
         self.shell.cur_path = path
-        with busy_spinner():
+        with BusySpinner():
             self.session.save()
         print(f"Record \"{path}\" created.")
 
@@ -171,7 +171,7 @@ class CmdRename(Command):
         new_path = args
         self.session[new_path] = self.session[old_path]
         self.shell.cur_path = new_path
-        with busy_spinner():
+        with BusySpinner():
             self.session.save()
         print(f"Record \"{old_path}\" renamed to \"{new_path}\".")
 
@@ -211,7 +211,7 @@ class CmdDelete(Command):
 
         del self.session[path]
         self.shell.cur_path = None
-        with busy_spinner():
+        with BusySpinner():
             self.session.save()
         print(f"Record \"{path}\" deleted.")
 
@@ -263,7 +263,7 @@ class CmdSet(Command):
         new_value = prompt("Value: ", default=old_value)
 
         rec[field_name] = new_value
-        with busy_spinner():
+        with BusySpinner():
             self.session.save()
     
 
@@ -287,7 +287,7 @@ class CmdUnset(Command):
         except KeyError:
             print(f"Field \"{field_name}\" not found.")
         else:
-            with busy_spinner():
+            with BusySpinner():
                 self.session.save()
             print(f"Field \"{field_name}\" deleted.")
     
@@ -311,7 +311,7 @@ class CmdChangePassphrase(Command):
 
         new_passphrase = read_set_passphrase(db_filename, initial=False)
         self.session.set_passphrase(new_passphrase)
-        with busy_spinner():
+        with BusySpinner():
             self.session.save()
         print("Passphrase updated.")
 
@@ -326,7 +326,7 @@ class CmdSync(Command):
             print("?")
             return
 
-        with busy_spinner():
+        with BusySpinner():
             summary = self.session.sync()
             self.session.save()
 
@@ -461,6 +461,8 @@ def start_shell(config, init) -> Shell:
         init: --init command line flag
     """
 
+    sync_on_start = True
+
     while True: # loop to allow repeated entry in case of a wrong passphrase.
         if init:
             if config.primary_db.exists():
@@ -472,11 +474,19 @@ def start_shell(config, init) -> Shell:
                 print("Database not found. Pass --init to create new database.")
                 return
             passphrase = read_passphrase(config.primary_db, open=True)
+        sp = BusySpinner()
+        sp.start()
         try:
             with SessionStarter(config, passphrase, init) as session:
+                if sync_on_start:
+                    summary = session.sync()
+                    for m in summary.messages():
+                        print(m)
+                sp.end()
                 shell = Shell(session)
                 shell.run()
         except SessionException as e:
+            sp.end()
             if e.error == SessionError.WRONG_PASSPHRASE:
                 print("Wrong passphrase, try again.")
                 continue # Wrong passphrase -> re-run loop
@@ -484,4 +494,5 @@ def start_shell(config, init) -> Shell:
                 raise e
         else:
             break # Passphrase was presumably correct -> exit loop.
-
+        finally:
+            sp.end()
