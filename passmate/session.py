@@ -224,6 +224,13 @@ class SyncSummary:
     def __repr__(self):
         return f"SyncSummary(failure={self.failure}, success={self.success})"
 
+    def messages(self):
+        for fn, err in self.failure.items():
+            yield f"Warning: Could not sync from {fn.name}: {err}"
+        for fn, updates in self.success.items():
+            if len(updates) > 0:
+                yield f"{fn.name}: {len(updates)} updates applied."
+
 class Session:
     """
     Use SessionStarter and 'with' to obtain a Session object.

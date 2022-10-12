@@ -29,6 +29,7 @@ Todo
 - Better reporting of SyncSummary
 - Test syncing
 - Test shell
+- Check CmdRename error handling
 
 
 Indices and tables
