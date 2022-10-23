@@ -22,14 +22,15 @@ Passmate is a simple password manager that stores your secret data (login creden
 Todo
 ----
 
-- Improve docs
-- Built-in help
-- Generate passwords (gen command)
-- Mask passwords after showing them
-- Better reporting of SyncSummary
-- Test syncing
 - Test shell
+- Test syncing
+- Test new reporting of SyncSummary
 - Check CmdRename error handling
+- Built-in help
+- Improve docs
+- Mask passwords after showing them
+- CmdGen: Allow customization of template_preset using config file
+- Revise session setup and sync at startup in cli / shell
 
 
 Indices and tables

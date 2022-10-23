@@ -11,6 +11,7 @@ from .pathtree import TreeFormatterFancy
 from .confirm_yes_no import confirm_yes_no
 from .read_passphrase import read_set_passphrase, read_passphrase
 from .busy_spinner import BusySpinner
+from .generate import PasswordGenerator
 
 class PromptCompleter(Completer):
     def __init__(self, shell):
@@ -265,7 +266,38 @@ class CmdSet(Command):
         rec[field_name] = new_value
         with BusySpinner():
             self.session.save()
-    
+
+class CmdGen(Command):
+    name = "gen"
+    completion_handler = Command.completion_handler_field_name
+
+    def context_check(self):
+        return self.shell.cur_path != None
+
+    def handle(self, args):
+        rec = self.session[self.shell.cur_path]
+
+        field_name = args
+        if len(field_name)==0:
+            print("?")
+            return
+        
+        try:
+            template_preset = rec[field_name]
+        except KeyError:
+            template_preset = "Aaaaaaaaaaaaaa5"
+
+        template = prompt("Template: ", default=template_preset)
+
+        g = PasswordGenerator.from_template(template)
+        new_value = g.generate()
+
+        print(f"Settings: {g.spec()}")
+        print(f"Generated {field_name}: {new_value}")
+
+        rec[field_name] = new_value
+        with BusySpinner():
+            self.session.save()
 
 class CmdUnset(Command):
     name = "unset"
@@ -353,6 +385,7 @@ class Shell:
         CmdUnset,
         CmdChangePassphrase,
         CmdSync,
+        CmdGen
     ]
 
     def __init__(self, session: Session):
