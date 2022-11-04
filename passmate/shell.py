@@ -101,23 +101,6 @@ class Command(metaclass=ABCMeta):
             if key.startswith(text):
                 yield Completion(key, start_position=-len(text))
 
-# class CmdSave(Command):
-#     name = "save"
-# 
-#     def context_check(self):
-#         return True
-#     
-#     def handle(self, args):
-#         if len(args)>0:
-#             print("?")
-#             return
-#         if self.session.save_required:
-#             with BusySpinner():
-#                 self.session.save()
-#             print("Changes saved.")
-#         else:
-#             print("No unsaved changes.")
-
 class CmdExit(Command):
     name = "exit"
 
@@ -125,15 +108,11 @@ class CmdExit(Command):
         return True
     
     def handle(self, args):
-        if not args in ["", "-f"]:
+        if len(args) > 0:
             print("?")
             return
 
-        if self.session.save_required and args != "-f":
-            print("Database has unsaved changes. Use 'save' to save changes or 'exit -f' to exit discarding changes.")
-            return False
-        else:
-            return True
+        return True # Exit
 
 class CmdList(Command):
     name = "ls"
@@ -156,8 +135,6 @@ class CmdNew(Command):
         path = args
         self.session[path] = Record()
         self.shell.cur_path = path
-        with BusySpinner():
-            self.session.save()
         print(f"Record \"{path}\" created.")
 
 class CmdRename(Command):
@@ -172,8 +149,6 @@ class CmdRename(Command):
         new_path = args
         self.session[new_path] = self.session[old_path]
         self.shell.cur_path = new_path
-        with BusySpinner():
-            self.session.save()
         print(f"Record \"{old_path}\" renamed to \"{new_path}\".")
 
 class CmdOpen(Command):
@@ -212,8 +187,6 @@ class CmdDelete(Command):
 
         del self.session[path]
         self.shell.cur_path = None
-        with BusySpinner():
-            self.session.save()
         print(f"Record \"{path}\" deleted.")
 
 class CmdClose(Command):
@@ -264,8 +237,6 @@ class CmdSet(Command):
         new_value = prompt("Value: ", default=old_value)
 
         rec[field_name] = new_value
-        with BusySpinner():
-            self.session.save()
 
 class CmdGen(Command):
     name = "gen"
@@ -296,8 +267,6 @@ class CmdGen(Command):
         print(f"Generated {field_name}: {new_value}")
 
         rec[field_name] = new_value
-        with BusySpinner():
-            self.session.save()
 
 class CmdUnset(Command):
     name = "unset"
@@ -319,8 +288,6 @@ class CmdUnset(Command):
         except KeyError:
             print(f"Field \"{field_name}\" not found.")
         else:
-            with BusySpinner():
-                self.session.save()
             print(f"Field \"{field_name}\" deleted.")
     
 
@@ -343,8 +310,7 @@ class CmdChangePassphrase(Command):
 
         new_passphrase = read_set_passphrase(db_filename, initial=False)
         self.session.set_passphrase(new_passphrase)
-        with BusySpinner():
-            self.session.save()
+
         print("Passphrase updated.")
 
 class CmdSync(Command):
@@ -372,7 +338,6 @@ class Shell:
     """
 
     command_classes = [
-        # CmdSave,
         CmdExit,
         CmdList,
         CmdNew,
@@ -474,6 +439,10 @@ class Shell:
         session = PromptSession(key_bindings=self.key_bindings(), complete_style=CompleteStyle.READLINE_LIKE)
 
         while running:
+            if self.session.save_required:
+                with BusySpinner():
+                    self.session.save()
+
             my_completer=PromptCompleter(self)
             pathinfo=""
             if self.cur_path:
