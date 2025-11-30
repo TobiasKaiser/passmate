@@ -5,7 +5,7 @@ build-backend = "flit_core.buildapi"
 [project]
 name = "passmate"
 authors = [{name = "Tobias Kaiser", email = "mail@tb-kaiser.de"}]
-readme = "README.rst"
+readme = "README.md"
 license = {file = "LICENSE"}
 classifiers = ["License :: OSI Approved :: Apache Software License"]
 dynamic = ["version", "description"]
