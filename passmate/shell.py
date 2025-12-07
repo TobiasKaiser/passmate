@@ -375,7 +375,7 @@ class Shell:
 
     def commands(self):
         """
-        Genetor for all currently available commands.
+        Generator for all currently available commands.
         """
         for cmd in self.all_commands:
             if cmd.context_check():

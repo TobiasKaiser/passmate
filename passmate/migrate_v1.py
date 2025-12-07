@@ -27,7 +27,7 @@ def translate_field_tuple(field_tuple_old) -> FieldTuple:
         domain="user"
         field_name=combined_field_name[1:]
     else:
-        raise MigrationException(f"Encountered unknwon combined_field_name \"{combined_field_name}\".")
+        raise MigrationException(f"Encountered unknown combined_field_name \"{combined_field_name}\".")
 
     mtime = field_tuple_old[1]
     value_list = field_tuple_old[2:]
