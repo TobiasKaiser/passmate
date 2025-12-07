@@ -558,10 +558,8 @@ class SessionStarter:
         except:
             # Make sure that we release the lock if an exception occurs after
             # acquire_lock:
-            if self.__exit__(*sys.exc_info()):
-                pass
-            else:
-                raise
+            self.release_lock()
+            raise
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.release_lock()
