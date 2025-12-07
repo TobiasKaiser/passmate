@@ -530,9 +530,9 @@ class SessionStarter:
 
     def release_lock(self):
         assert self.has_lock
-        self.has_lock = False
         os.unlink(self.lock_filename())
         self.lockfile.close()
+        self.has_lock = False
 
     def __enter__(self):
         self.acquire_lock()
