@@ -456,7 +456,7 @@ class Shell:
                 running=False
 
 
-def start_shell(config, init) -> Shell:
+def start_shell(config) -> Shell:
     """
     Args:
         config: Config object read from user's config.toml
@@ -465,16 +465,19 @@ def start_shell(config, init) -> Shell:
 
     sync_on_start = True
 
+    config.shared_folder.mkdir(parents=True, exist_ok=True)
+
+    init = False
+
     while True: # loop to allow repeated entry in case of a wrong passphrase.
-        if init:
-            if config.primary_db.exists():
-                print("--init specified with database already present.")
-                return
+        # Auto-initialize if database doesn't exist
+        
+        if not config.primary_db.exists():
+            print("No database found. Creating a new one...")
             passphrase = read_set_passphrase(config.primary_db, initial=True)
+            init = True  # Enable initialization for SessionStarter
         else:
-            if not config.primary_db.exists():
-                print("Database not found. Pass --init to create new database.")
-                return
+            # Database exists, open normally
             passphrase = read_passphrase(config.primary_db, open=True)
         sp = BusySpinner()
         sp.start()

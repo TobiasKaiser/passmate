@@ -24,7 +24,7 @@ def load_config(toml_fn):
 def main_open(args):
     init_config_if_missing(args.config_toml)
     config = load_config(args.config_toml)
-    start_shell(config, args.init)
+    start_shell(config)
 
 def main_migrate(args):
     migrate(args.pmdb_in, args.pmdb_out)
@@ -46,7 +46,6 @@ def main():
     parser_open.add_argument("config_toml", nargs="?",
         help="Configuration file",
         default=default_config_fn())
-    parser_open.add_argument("--init", action="store_true")
     parser_open.set_defaults(action=main_open)
     
     parser_migrate = subparsers.add_parser("migrate",
