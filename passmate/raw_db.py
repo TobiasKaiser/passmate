@@ -157,7 +157,8 @@ class RawDatabase:
         if self.is_sync_copy:
             raise DatabaseException("json() called on sync copy")
 
-        assert purpose in ("primary", "sync_copy")
+        if purpose not in ('primary', 'sync_copy'):
+            raise ValueError("purpose must be 'primary' or 'sync_copy'.")
         obj = {
             "version": 2,
             "purpose": purpose,
