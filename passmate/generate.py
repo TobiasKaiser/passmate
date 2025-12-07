@@ -22,7 +22,7 @@ class PasswordGenerator:
 
     def groups(self) -> list[str]:
         groups = []
-        if self.include_upper:
+        if self.include_lower:
             groups.append(string.ascii_lowercase)
         if self.include_upper:
             groups.append(string.ascii_uppercase)
@@ -36,7 +36,7 @@ class PasswordGenerator:
 
     def groups_spec(self) -> list[str]:
         groups = []
-        if self.include_upper:
+        if self.include_lower:
             groups.append("a-z")
         if self.include_upper:
             groups.append("A-Z")
