@@ -1,12 +1,13 @@
-# Passmate
+# Passmate — A simple, secure password manager with multi-device synchronization
 
-## A simple, secure password manager with multi-device synchronization
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Passmate on PyPI](https://img.shields.io/pypi/v/passmate.svg)](https://pypi.python.org/pypi/passmate)
 
-Passmate is a command-line password manager that keeps your passwords encrypted and synchronized across multiple devices using a shared folder (like Dropbox or any cloud storage).
+Passmate is a command-line password manager that keeps your passwords encrypted and synchronized across multiple devices using a shared folder (like [Syncthing](https://syncthing.net/), Dropbox or any cloud storage).
 
 ## ✨ Features
 
-* 🔒 **Strong Encryption**: All databases encrypted with scrypt
+* 🔒 **Strong Encryption**: All databases encrypted with scrypt. By using a single-file database, metadata leakage is minimzed.
 * 🔄 **Automatic Sync**: Conflict-free synchronization across devices
 * 💻 **Interactive Shell**: User-friendly command-line interface with tab completion
 * 🌳 **Hierarchical Organization**: Organize passwords in folder-like paths
@@ -26,7 +27,7 @@ From source:
 ```bash
 git clone https://github.com/TobiasKaiser/passmate.git
 cd passmate
-python3 -m flit install
+pip3 install .
 ```
 
 ## 🚀 Quick Start
@@ -127,7 +128,7 @@ host_id = "laptop"
 
 ## 🔄 Multi-Device Synchronization
 
-Passmate uses a conflict-free synchronization strategy based on Last-Write-Wins (LWW).
+Passmate uses a conflict-free synchronization strategy based on timestamps (Last-Write-Wins strategy).
 
 ### Setup Instructions
 
@@ -167,41 +168,35 @@ Passmate uses a conflict-free synchronization strategy based on Last-Write-Wins 
 
    It will create a new database, then sync to pull data from Device 1.
 
+**Master passphrase in multi-device setup:** For synchronization to work, you must use the same master passphrase on each device. If you change your master passphrase, you must do so on each device individually.
+
 ### How Sync Works
 
-* Each device writes a sync copy to the shared folder
-* When you run `sync`, passmate reads all sync copies and merges changes
-* Conflicts are resolved automatically using modification timestamps
-* All changes are encrypted with your master passphrase
+* Each device writes a sync copy to the shared folder.
+* When you run `sync`, passmate reads all sync copies and merges changes.
+* Conflicts are resolved automatically using modification timestamps.
+* All changes are encrypted with your master passphrase.
 
 ## 🔐 Security
 
-* All databases are encrypted using **scrypt** key derivation
-* Time-based parameters: maxtime=1.0s, maxmem=16MB
-* Data is padded to 4KB increments to reduce metadata leakage
-* Password generation uses Python's `secrets` module (CSPRNG)
+* All databases are encrypted using the [**scrypt**](https://www.tarsnap.com/scrypt.html) key derivation function (maxtime=1.0s, maxmem=16MB).
+* Data is padded to 4KB increments to reduce metadata leakage.
+* Password generation uses Python's `secrets` module (CSPRNG).
 
 ## 🔨 Development
 
-Run tests:
+There are some rudimentary tests:
 
 ```bash
-python3 -m pytest
-python3 -m pytest -v                    # Verbose output
-python3 -m pytest tests/test_pathtree.py  # Specific test
+pytest-3 .
 ```
 
-Build package:
+To build the package's .whl and .tar.gz files, run:
 
 ```bash
-python3 -m flit build
+python3 -m build
 ```
-
-## 📄 License
-
-Licensed under the Apache License 2.0. See `LICENSE` for details.
 
 ## 🔗 Links
 
 * **Source Code**: https://github.com/TobiasKaiser/passmate
-* **Author**: Tobias Kaiser (mail@tb-kaiser.de)
