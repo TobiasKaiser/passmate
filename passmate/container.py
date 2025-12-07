@@ -1,6 +1,7 @@
 from pathlib import Path
 import shutil
 import scrypt
+import os
 
 maxtime = 1.0
 maxmem = 16*1024*1024
@@ -20,7 +21,12 @@ def save_encrypted(filename: Path, passphrase: str, data_plain: str):
     data_scrypt = scrypt.encrypt(data_plain_padded, passphrase,
         maxtime=maxtime, maxmem=maxmem, maxmemfrac=maxmemfrac)
 
-    with open(filename_tmp, "wb") as f:
+    # Create pmdb file with mode 600, to prevent other users or group members
+    # from accessing it:
+    def opener(path, flags):
+        return os.open(path, flags, 0o600)
+
+    with open(filename_tmp, "wb", opener=opener) as f:
         f.write(data_scrypt)
 
     shutil.move(filename_tmp, filename)
