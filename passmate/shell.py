@@ -371,7 +371,7 @@ class Shell:
                 print(f"{field_name:>{maxlen}}: {value_multiline[0]}")
                 for v in value_multiline[1:]:
                     nothing=""
-                    print(f"{nothing:>{maxlen}}> {value_multiline}")
+                    print(f"{nothing:>{maxlen}}> {v}")
 
     def commands(self):
         """
