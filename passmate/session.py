@@ -11,7 +11,7 @@ from pathlib import Path
 
 from .config import Config
 from .container import save_encrypted, load_encrypted
-from .raw_db import RawDatabase, RawRecord, FieldTuple, RawDatabaseUpdate
+from .raw_db import RawDatabase, RawRecord, FieldTuple, RawDatabaseUpdate, DatabaseException
 from .pathtree import PathTree
 
 class SessionError(Enum):
@@ -122,7 +122,7 @@ class Record:
                     self._path = ft.field_value
                     self._path_mtime = ft.mtime
             else:
-                assert False
+                raise DatabaseException(f"Unknown field name in 'meta' domain: {ft.field_name}")
         elif ft.domain == "user":
             if ft.mtime > self.field_mtime(ft.field_name):
                 if ft.field_value:
@@ -134,7 +134,7 @@ class Record:
                         pass
                 self._userdata_mtime[ft.field_name] = ft.mtime
         else:
-            assert False
+            raise DatabaseException(f"Invalid field domain: {ft.domain}")
 
     def field_mtime(self, field_name):
         try:
