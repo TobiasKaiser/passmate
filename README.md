@@ -5,7 +5,9 @@
 
 Passmate is a command-line password manager that keeps your passwords encrypted and synchronized across multiple devices using a shared folder (like [Syncthing](https://syncthing.net/), Dropbox or any cloud storage).
 
-## ✨ Features
+[✨ Features](#features) | [📦 Installation](#installation) | [🚀 Quick Start](#quick-start) | [📖 Usage](#usage) | [🔧 Configuration](#configuration) | [🔄 Multi-Device Synchronization](#multi-device-synchronization) | [🔐 Security](#security) | [🔨 Development](#development) | [🔗 Links](#links)
+
+## Features
 
 * 🔒 **Strong Encryption**: All databases encrypted with scrypt. By using a single-file database, metadata leakage is minimzed.
 * 🔄 **Automatic Sync**: Conflict-free synchronization across devices
@@ -14,7 +16,7 @@ Passmate is a command-line password manager that keeps your passwords encrypted 
 * 🎲 **Password Generator**: Built-in cryptographically strong password generator
 * 🔍 **Smart Search**: Case-insensitive filtering across all records
 
-## 📦 Installation
+## Installation
 
 Using pip:
 
@@ -30,7 +32,7 @@ cd passmate
 pip3 install .
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 Simply run:
 
@@ -42,7 +44,7 @@ If this is your first time, passmate will automatically create a new encrypted d
 
 For subsequent uses, just run `passmate` again and enter your passphrase.
 
-## 📖 Usage
+## Usage
 
 ### Interactive Shell Commands
 
@@ -110,7 +112,7 @@ passmate:work/email/gmail> close
 passmate> exit
 ```
 
-## 🔧 Configuration
+## Configuration
 
 Default configuration file: `~/.local/share/passmate/config.toml`
 
@@ -126,9 +128,28 @@ host_id = "laptop"
 * **shared_folder**: Path to folder for synchronization (e.g., Dropbox folder)
 * **host_id**: Unique identifier for this device (defaults to hostname)
 
-## 🔄 Multi-Device Synchronization
+### Default Paths
 
-Passmate uses a conflict-free synchronization strategy based on timestamps (Last-Write-Wins strategy).
+Under Linux, passmate uses the following default paths:
+
+| Path | Purpose | How to change |
+|------|---------|---------------|
+| `~/.local/share/passmate/config.toml` | Configuration file | Pass custom path as command line argument |
+| `~/.local/share/passmate/local.pmdb` | Primary database | Change `primary_db` in config file |
+| `~/.local/share/passmate/sync/` | Shared folder for sync | Change `shared_folder` in config file |
+
+## Multi-Device Synchronization
+
+Passmate uses a conflict-free synchronization strategy based on timestamps (Last-Write-Wins strategy). To synchronize your database across multiple systems, use a file/folder synchronization tool of your choice to sync the shared folder.
+
+### Synchronization Tools
+
+Passmate works with any file synchronization mechanism. Popular options include:
+
+* **[Syncthing](https://syncthing.net/)** - Decentralized file synchronization
+* **[Unison](https://www.cis.upenn.edu/~bcpierce/unison/)** - File synchronization tool
+* **Network filesystems** - NFS, SMB, [sshfs](https://github.com/libfuse/sshfs)
+* **Cloud services** - Dropbox, [NextCloud](https://nextcloud.com/)/WebDAV, or similar
 
 ### Setup Instructions
 
@@ -168,7 +189,7 @@ Passmate uses a conflict-free synchronization strategy based on timestamps (Last
 
    It will create a new database, then sync to pull data from Device 1.
 
-**Master passphrase in multi-device setup:** For synchronization to work, you must use the same master passphrase on each device. If you change your master passphrase, you must do so on each device individually.
+**Master passphrase in multi-device setup:** If you use the same master passphrase on all devices, synchronization will be seamless. If different passphrases are used on different hosts, you will be prompted to enter the remote host's passphrase during synchronization. When changing your passphrase, you must do so on each device individually.
 
 ### How Sync Works
 
@@ -177,13 +198,13 @@ Passmate uses a conflict-free synchronization strategy based on timestamps (Last
 * Conflicts are resolved automatically using modification timestamps.
 * All changes are encrypted with your master passphrase.
 
-## 🔐 Security
+## Security
 
 * All databases are encrypted using the [**scrypt**](https://www.tarsnap.com/scrypt.html) key derivation function (maxtime=1.0s, maxmem=16MB).
 * Data is padded to 4KB increments to reduce metadata leakage.
 * Password generation uses Python's `secrets` module (CSPRNG).
 
-## 🔨 Development
+## Development
 
 There are some rudimentary tests:
 
@@ -197,6 +218,29 @@ To build the package's .whl and .tar.gz files, run:
 python3 -m build
 ```
 
-## 🔗 Links
+### Database Format
+
+Passmate stores password data as a JSON object encrypted using [scrypt's container format](https://github.com/Tarsnap/scrypt/blob/master/FORMAT). The container uses AES256-CTR encryption and HMAC-SHA256 for integrity verification.
+
+**Data Model:**
+* Each password record contains metadata fields (currently just "path") and user data fields (e.g., "password", "username")
+* Records are identified by random unique IDs (not exposed to users)
+* Each field is stored as a tuple: `[domain, field_name, field_value, modification_time]`
+* The database keeps a complete modification history using UNIX timestamps
+
+**Conflict Resolution:**
+* When databases from different devices are merged, field tuples are combined using set union
+* The most recent modification (by timestamp) determines the current value for each field
+* This enables automatic conflict-free merging across devices
+
+**File Locking:**
+* Primary database files use fcntl.lockf to prevent concurrent access
+* A separate lock file ensures only one process can open the database at a time
+
+**Database Purposes:**
+* `primary`: The main database file that can be directly opened and modified
+* `sync_copy`: Read-only synchronization copies written to the shared folder for other devices to merge
+
+## Links
 
 * **Source Code**: https://github.com/TobiasKaiser/passmate
