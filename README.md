@@ -228,6 +228,28 @@ Passmate stores password data as a JSON object encrypted using [scrypt's contain
 * Each field is stored as a tuple: `[domain, field_name, field_value, modification_time]`
 * The database keeps a complete modification history using UNIX timestamps
 
+**Example JSON Structure:**
+
+```json
+{
+  "version": 2,
+  "purpose": "primary",
+  "records": {
+    "a1b2c3d4e5f6": [
+      ["meta", "path", "work/email/gmail", 1234567890],
+      ["user", "username", "user@example.com", 1234567891],
+      ["user", "password", "SecurePass123", 1234567892]
+    ]
+  }
+}
+```
+
+In this example:
+* `version` must be 2 (current format version)
+* `purpose` is either "primary" or "sync_copy"
+* `records` contains all password entries, keyed by random record IDs
+* Each field tuple has: domain ("meta" or "user"), field name, field value, and UNIX timestamp
+
 **Conflict Resolution:**
 * When databases from different devices are merged, field tuples are combined using set union
 * The most recent modification (by timestamp) determines the current value for each field
