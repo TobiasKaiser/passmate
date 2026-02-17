@@ -549,14 +549,13 @@ class Shell:
                 running=False
 
 
-def start_shell(config) -> Shell:
+def start_shell(config, sync_on_start: bool = True) -> Shell:
     """
     Args:
         config: Config object read from user's config.toml
         init: --init command line flag
+        sync_on_start: Run synchronization before opening interactive shell.
     """
-
-    sync_on_start = True
 
     config.shared_folder.mkdir(parents=True, exist_ok=True)
 
@@ -588,6 +587,9 @@ def start_shell(config) -> Shell:
             if e.error == SessionError.WRONG_PASSPHRASE:
                 print("Wrong passphrase, try again.")
                 continue # Wrong passphrase -> re-run loop
+            elif e.error == SessionError.DB_LOCKED:
+                print("Database is locked by another passmate process.")
+                return
             else:
                 raise e
         else:

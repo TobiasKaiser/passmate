@@ -27,7 +27,7 @@ def load_config(toml_fn):
 def main_open(args):
     init_config_if_missing(args.config_toml)
     config = load_config(args.config_toml)
-    start_shell(config)
+    start_shell(config, sync_on_start=(not args.skip_sync))
 
 def main_migrate(args):
     migrate(args.pmdb_in, args.pmdb_out)
@@ -41,6 +41,9 @@ def main():
     ap.set_defaults(action=main_open)
     ap.set_defaults(init=False)
     ap.set_defaults(config_toml=default_config_fn())
+    ap.set_defaults(skip_sync=False)
+    ap.add_argument("--skip-sync", action="store_true",
+        help="Skip synchronization at startup")
 
     subparsers = ap.add_subparsers(title="Commands")
 
@@ -49,6 +52,8 @@ def main():
     parser_open.add_argument("config_toml", nargs="?",
         help="Configuration file",
         default=default_config_fn())
+    parser_open.add_argument("--skip-sync", action="store_true",
+        help="Skip synchronization at startup")
     parser_open.set_defaults(action=main_open)
     
     parser_migrate = subparsers.add_parser("migrate",
