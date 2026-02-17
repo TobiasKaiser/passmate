@@ -428,7 +428,7 @@ class Session:
     def sync(self) -> SyncSummary:
         summary = SyncSummary()
 
-        for fn in self.config.shared_folder.iterdir():
+        for fn in sorted(self.config.shared_folder.iterdir()):
             if fn.suffix != ".pmdb":
                 continue
 
