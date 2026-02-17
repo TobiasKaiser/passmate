@@ -7,6 +7,7 @@ to simulate realistic user typing and command sequences.
 
 import io
 import sys
+import string
 import pytest
 from contextlib import contextmanager
 from prompt_toolkit.input import create_pipe_input
@@ -213,3 +214,11 @@ def test_shell_help_for_specific_command(session):
     assert "rename: Rename current record." in output
     assert "Usage: rename <new_path>" in output
     assert "Currently unavailable in this context." in output
+
+def test_gen_uses_config_preset(tmp_path):
+    with start_session(tmp_path, init=True, template_preset="A5") as session:
+        output, _ = run_shell(session, ["new t", "gen pw", ""])
+        generated = session["t"]["pw"]
+        assert len(generated) == 2
+        assert any(c in string.ascii_uppercase for c in generated)
+        assert any(c in string.digits for c in generated)

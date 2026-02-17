@@ -120,6 +120,7 @@ Default configuration file: `~/.local/share/passmate/config.toml`
 primary_db = "~/.local/share/passmate/local.pmdb"
 shared_folder = "~/.local/share/passmate/sync/"
 host_id = "laptop"
+template_preset = "Aaaaaaaaaaaaaa5"
 ```
 
 ### Configuration Options
@@ -127,6 +128,7 @@ host_id = "laptop"
 * **primary_db**: Path to your encrypted password database
 * **shared_folder**: Path to folder for synchronization (e.g., Dropbox folder)
 * **host_id**: Unique identifier for this device (defaults to hostname)
+* **template_preset**: Default template used by `gen` for new fields
 
 ### Default Paths
 

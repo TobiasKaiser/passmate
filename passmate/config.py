@@ -7,6 +7,7 @@ class Config:
     primary_db: str
     shared_folder: str
     host_id: str
+    template_preset: str
 
     @classmethod
     def default(cls):
@@ -17,6 +18,7 @@ class Config:
             "primary_db": primary_db_default,
             "shared_folder": shared_folder_default,
             "host_id": host_id_default,
+            "template_preset": "Aaaaaaaaaaaaaa5",
         })
 
     def __init__(self, dict_data):
@@ -31,10 +33,18 @@ class Config:
 
         if "host_id" in dict_data:
             object.__setattr__(self, "host_id", dict_data["host_id"])
+        else:
+            object.__setattr__(self, "host_id", platform.node())
+
+        if "template_preset" in dict_data:
+            object.__setattr__(self, "template_preset", dict_data["template_preset"])
+        else:
+            object.__setattr__(self, "template_preset", "Aaaaaaaaaaaaaa5")
 
     def dict(self):
         return {
             "primary_db": str(self.primary_db),
             "shared_folder": str(self.shared_folder),
             "host_id": self.host_id,
+            "template_preset": self.template_preset,
         }

@@ -300,7 +300,7 @@ class CmdGen(Command):
         try:
             template_preset = rec[field_name]
         except KeyError:
-            template_preset = "Aaaaaaaaaaaaaa5"
+            template_preset = self.session.config.template_preset
 
         template = prompt("Template: ", default=template_preset)
 
