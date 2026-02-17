@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import collections
+import sys
 from abc import ABC, ABCMeta, abstractmethod
 from prompt_toolkit import prompt, PromptSession
 from prompt_toolkit.completion import Completer, Completion
@@ -202,7 +203,10 @@ class CmdOpen(Command):
             return
         if path in self.session:
             self.shell.cur_path = path
-            self.shell.print_current_record()
+            lines_printed = self.shell.print_current_record()
+            # By marking the output lines as ephermal, they are hidden
+            # after next command is entered.
+            self.shell.mark_ephemeral_output(lines_printed)
         else:
             print(f"Record \"{path}\" not found.")
 
@@ -255,7 +259,8 @@ class CmdShow(Command):
         if len(args) > 0:
             self.print_usage_error("Command takes no arguments.")
         else:
-            self.shell.print_current_record()
+            lines_printed = self.shell.print_current_record()
+            self.shell.mark_ephemeral_output(lines_printed)
 
 class CmdSet(Command):
     name = "set"
@@ -443,6 +448,7 @@ class Shell:
     def __init__(self, session: Session):
         self.session = session
         self.cur_path = None
+        self._ephemeral_output_lines = 0
 
         self.all_commands = [cls(self) for cls in self.command_classes]
 
@@ -453,18 +459,46 @@ class Shell:
         return None
 
     def print_current_record(self):
+        lines_printed = 0
         rec = self.session[self.cur_path]
         if len(rec)==0:
             print(f"Record \"{self.cur_path}\" is empty.")
+            lines_printed += 1
         else:
             maxlen = max(map(len, iter(rec)))
             for field_name in rec:
                 value = rec[field_name]
                 value_multiline = value.split("\n")
                 print(f"{field_name:>{maxlen}}: {value_multiline[0]}")
+                lines_printed += 1
                 for v in value_multiline[1:]:
                     nothing=""
                     print(f"{nothing:>{maxlen}}> {v}")
+                    lines_printed += 1
+        return lines_printed
+
+    def mark_ephemeral_output(self, lines: int):
+        """
+        By marking the output lines as ephermal, they are hidden
+        after next command is entered (see clear_ephemeral_output method).
+        """
+            
+        self._ephemeral_output_lines = max(0, lines)
+
+    def clear_ephemeral_output(self, entered_cmd: str):
+        if self._ephemeral_output_lines <= 0:
+            return
+
+        # Scope: clear only the previous open/show preview block.
+        # Clear previous output block plus the current prompt/input line.
+        for _ in range(self._ephemeral_output_lines + 1):
+            sys.stdout.write("\x1b[1A\x1b[2K")
+        pathinfo = ""
+        if self.cur_path:
+            pathinfo = ":" + self.cur_path
+        sys.stdout.write(f"\rpassmate{pathinfo}> {entered_cmd}\n")
+        sys.stdout.flush()
+        self._ephemeral_output_lines = 0
 
     def commands(self):
         """
@@ -514,6 +548,7 @@ class Shell:
         raise KeyError("Unknown command.")
 
     def handle_cmd(self, text):
+        self.clear_ephemeral_output(text)
         try:
             try:
                 return self.handle_cmd_named(text)
