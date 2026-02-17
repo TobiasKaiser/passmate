@@ -46,6 +46,8 @@ class PromptCompleter(Completer):
 
 class Command(metaclass=ABCMeta):
     is_default = False
+    help_text = ""
+    usage = ""
 
     def __init__(self, shell):
         self.shell = shell
@@ -76,6 +78,9 @@ class Command(metaclass=ABCMeta):
     def session(self) -> Session:
         return self.shell.session
 
+    def print_usage_error(self, details: str = "Invalid arguments.") -> None:
+        print(f"{details} Usage: {self.usage}")
+
     def completion_handler_path(self, text):
         start_idx=text.rfind("/")
 
@@ -103,19 +108,23 @@ class Command(metaclass=ABCMeta):
 
 class CmdExit(Command):
     name = "exit"
+    help_text = "Exit passmate."
+    usage = "exit"
 
     def context_check(self):
         return True
     
     def handle(self, args):
         if len(args) > 0:
-            print("?")
+            self.print_usage_error("Command takes no arguments.")
             return
 
         return True # Exit
 
 class CmdList(Command):
     name = "ls"
+    help_text = "List records as a tree. Optionally filter by search term."
+    usage = "ls [search_term]"
 
     def context_check(self):
         return True
@@ -126,6 +135,8 @@ class CmdList(Command):
 
 class CmdNew(Command):
     name = "new"
+    help_text = "Create a new record and open it."
+    usage = "new <path>"
     completion_handler = Command.completion_handler_path
 
     def context_check(self):
@@ -133,12 +144,23 @@ class CmdNew(Command):
 
     def handle(self, args):
         path = args
-        self.session[path] = Record()
+        if len(path) == 0:
+            self.print_usage_error("Missing record path.")
+            return
+        try:
+            self.session[path] = Record()
+        except SessionException as exc:
+            if exc.error == SessionError.PATH_COLLISION:
+                print(f"Record \"{path}\" already exists.")
+                return
+            raise
         self.shell.cur_path = path
         print(f"Record \"{path}\" created.")
 
 class CmdRename(Command):
     name = "rename"
+    help_text = "Rename current record."
+    usage = "rename <new_path>"
     completion_handler = Command.completion_handler_path
 
     def context_check(self):
@@ -147,13 +169,24 @@ class CmdRename(Command):
     def handle(self, args):
         old_path = self.shell.cur_path
         new_path = args
-        self.session[new_path] = self.session[old_path]
+        if len(new_path) == 0:
+            self.print_usage_error("Missing new record path.")
+            return
+        try:
+            self.session[new_path] = self.session[old_path]
+        except SessionException as exc:
+            if exc.error == SessionError.PATH_COLLISION:
+                print(f"Record \"{new_path}\" already exists.")
+                return
+            raise
         self.shell.cur_path = new_path
         print(f"Record \"{old_path}\" renamed to \"{new_path}\".")
 
 class CmdOpen(Command):
     name = "open"
     is_default = True
+    help_text = "Open an existing record."
+    usage = "open <path>"
     completion_handler = Command.completion_handler_path
 
     def context_check(self):
@@ -162,6 +195,7 @@ class CmdOpen(Command):
     def handle(self, args):
         path = args
         if len(path) == 0:
+            self.print_usage_error("Missing record path.")
             return
         if path in self.session:
             self.shell.cur_path = path
@@ -171,13 +205,15 @@ class CmdOpen(Command):
 
 class CmdDelete(Command):
     name = "del"
+    help_text = "Delete current record after confirmation."
+    usage = "del"
 
     def context_check(self):
         return self.shell.cur_path != None
 
     def handle(self, args):
         if len(args)>0:
-            print("?")
+            self.print_usage_error("Command takes no arguments.")
             return
 
         path = self.shell.cur_path
@@ -192,30 +228,36 @@ class CmdDelete(Command):
 class CmdClose(Command):
     name = "close"
     is_default = True
+    help_text = "Close current record."
+    usage = "close"
 
     def context_check(self):
         return self.shell.cur_path != None
 
     def handle(self, args):
         if len(args) > 0:
-            print("?")
+            self.print_usage_error("Command takes no arguments.")
         else:
             self.shell.cur_path = None
 
 class CmdShow(Command):
     name = "show"
+    help_text = "Show all fields of current record."
+    usage = "show"
 
     def context_check(self):
         return self.shell.cur_path != None
 
     def handle(self, args):
         if len(args) > 0:
-            print("?")
+            self.print_usage_error("Command takes no arguments.")
         else:
             self.shell.print_current_record()
 
 class CmdSet(Command):
     name = "set"
+    help_text = "Set a field value in current record."
+    usage = "set <field_name>"
     completion_handler = Command.completion_handler_field_name
 
     def context_check(self):
@@ -226,7 +268,7 @@ class CmdSet(Command):
 
         field_name = args
         if len(field_name)==0:
-            print("?")
+            self.print_usage_error("Missing field name.")
             return
         
         try:
@@ -240,6 +282,8 @@ class CmdSet(Command):
 
 class CmdGen(Command):
     name = "gen"
+    help_text = "Generate a value from template and store it in a field."
+    usage = "gen <field_name>"
     completion_handler = Command.completion_handler_field_name
 
     def context_check(self):
@@ -250,7 +294,7 @@ class CmdGen(Command):
 
         field_name = args
         if len(field_name)==0:
-            print("?")
+            self.print_usage_error("Missing field name.")
             return
         
         try:
@@ -270,6 +314,8 @@ class CmdGen(Command):
 
 class CmdUnset(Command):
     name = "unset"
+    help_text = "Delete a field from current record."
+    usage = "unset <field_name>"
     completion_handler = Command.completion_handler_field_name
 
     def context_check(self):
@@ -280,7 +326,7 @@ class CmdUnset(Command):
 
         field_name = args
         if len(field_name)==0:
-            print("?")
+            self.print_usage_error("Missing field name.")
             return
 
         try:
@@ -293,13 +339,15 @@ class CmdUnset(Command):
 
 class CmdChangePassphrase(Command):
     name = "change_passphrase"
+    help_text = "Change the master passphrase."
+    usage = "change_passphrase"
 
     def context_check(self):
         return self.shell.cur_path == None
 
     def handle(self, args):
         if len(args) > 0:
-            print("?")
+            self.print_usage_error("Command takes no arguments.")
             return
 
         db_filename = self.session.config.primary_db
@@ -315,13 +363,15 @@ class CmdChangePassphrase(Command):
 
 class CmdSync(Command):
     name = "sync"
+    help_text = "Synchronize with other devices via shared folder."
+    usage = "sync"
 
     def context_check(self):
         return self.shell.cur_path == None
 
     def handle(self, args):
         if len(args) > 0:
-            print("?")
+            self.print_usage_error("Command takes no arguments.")
             return
 
         with BusySpinner():
@@ -331,6 +381,39 @@ class CmdSync(Command):
         for m in summary.messages():
             print(m)
 
+class CmdHelp(Command):
+    name = "help"
+    help_text = "Show general help or details for one command."
+    usage = "help [command]"
+
+    def context_check(self):
+        return True
+
+    def completion_handler(self, text):
+        for cmd in self.shell.all_commands:
+            if cmd.name.startswith(text):
+                yield Completion(cmd.name, start_position=-len(text), style='fg:ansired')
+
+    def handle(self, args):
+        cmd_name = args.strip()
+        if not cmd_name:
+            print("Passmate commands:")
+            for cmd in self.shell.all_commands:
+                available = "yes" if cmd.context_check() else "no"
+                print(f"  {cmd.usage:<24} {cmd.help_text} (available now: {available})")
+            print("Use: help <command>")
+            return
+
+        cmd = self.shell.command_by_name(cmd_name)
+        if not cmd:
+            print(f"Unknown command \"{cmd_name}\". Use: help")
+            return
+
+        print(f"{cmd.name}: {cmd.help_text}")
+        print(f"Usage: {cmd.usage}")
+        if not cmd.context_check():
+            print("Currently unavailable in this context.")
+
 class Shell:
     """
     The Shell class provides a shell-like interface for accessing a
@@ -338,6 +421,7 @@ class Shell:
     """
 
     command_classes = [
+        CmdHelp,
         CmdExit,
         CmdList,
         CmdNew,
@@ -358,6 +442,12 @@ class Shell:
         self.cur_path = None
 
         self.all_commands = [cls(self) for cls in self.command_classes]
+
+    def command_by_name(self, name: str) -> Command | None:
+        for cmd in self.all_commands:
+            if cmd.name == name:
+                return cmd
+        return None
 
     def print_current_record(self):
         rec = self.session[self.cur_path]
@@ -429,7 +519,7 @@ class Shell:
                 if default_cmd:
                     return default_cmd.handle(text)
                 else:
-                    print("?")
+                    print("Unknown command. Use: help")
         except SessionException as exc:
             print(f"Error: {exc}")
 

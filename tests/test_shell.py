@@ -86,6 +86,12 @@ def test_shell_new_creates_record(session):
     assert shell.cur_path == "myrecord"  # Still open after creation
     assert "created" in output.lower()
 
+def test_new_duplicate_name(session):
+    output, shell = run_shell(session, ["new duplicate", "close", "new duplicate"])
+    assert "already exists" in output.lower()
+    assert set(iter(session)) == {"duplicate"}
+    assert shell.cur_path is None
+
 
 def test_shell_open_existing_record(session):
     populate_test_db(session)
@@ -173,11 +179,37 @@ def test_shell_context_transitions(session):
     output, shell = run_shell(session, ["open work/email", "close", "new another", "close"])
     assert shell.cur_path is None
 
+def test_rename_duplicate_name(session):
+    output, shell = run_shell(session, ["new a", "close", "new b", "close", "open a", "rename b"])
+    assert "already exists" in output.lower()
+    assert "a" in session
+    assert "b" in session
+    assert shell.cur_path == "a"
+
 
 # Advanced tests
 # --------------
 
 def test_shell_error_recovery(session):
     output, _ = run_shell(session, ["invalidcommand", "open", "exit extra_args"])
-    # Invalid path shows "not found", exit with args shows "?"
-    assert ("not found" in output.lower() or "?" in output)
+    assert "not found" in output.lower()
+    assert "Missing record path. Usage: open <path>" in output
+    assert "Command takes no arguments. Usage: exit" in output
+
+def test_shell_open_without_argument_shows_usage(session):
+    output, shell = run_shell(session, ["open"])
+    assert "Missing record path. Usage: open <path>" in output
+    assert shell.cur_path is None
+
+def test_shell_help_lists_commands(session):
+    output, _ = run_shell(session, ["help"])
+    assert "Passmate commands:" in output
+    assert "help [command]" in output
+    assert "new <path>" in output
+    assert "sync" in output
+
+def test_shell_help_for_specific_command(session):
+    output, _ = run_shell(session, ["help rename"])
+    assert "rename: Rename current record." in output
+    assert "Usage: rename <new_path>" in output
+    assert "Currently unavailable in this context." in output
