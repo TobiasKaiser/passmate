@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Tobias Kaiser <mail@tb-kaiser.de>
+# SPDX-License-Identifier: Apache-2.0
+
 from pathlib import Path
 
 from passmate.raw_db import FieldTuple, RawDatabaseUpdate

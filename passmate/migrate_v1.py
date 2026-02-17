@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2022 Tobias Kaiser <mail@tb-kaiser.de>
+# SPDX-License-Identifier: Apache-2.0
+
 import json
 from .read_passphrase import read_passphrase
 from .container import load_encrypted

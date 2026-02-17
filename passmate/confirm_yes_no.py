@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2022 Tobias Kaiser <mail@tb-kaiser.de>
+# SPDX-License-Identifier: Apache-2.0
+
 import asyncio
 
 from prompt_toolkit.input import create_input

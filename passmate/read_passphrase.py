@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2022 Tobias Kaiser <mail@tb-kaiser.de>
+# SPDX-License-Identifier: Apache-2.0
+
 import getpass
 
 def read_set_passphrase(filename, initial:bool):

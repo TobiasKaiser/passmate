@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2022 Tobias Kaiser <mail@tb-kaiser.de>
+# SPDX-License-Identifier: Apache-2.0
+
 import collections
 from abc import ABC, ABCMeta, abstractmethod
 from prompt_toolkit import prompt, PromptSession

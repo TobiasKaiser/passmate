@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2022 Tobias Kaiser <mail@tb-kaiser.de>
+# SPDX-License-Identifier: Apache-2.0
+
 import pytest
 from passmate.session import SessionException, SessionError
 from .start_session import start_session
