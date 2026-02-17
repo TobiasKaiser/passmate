@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import fcntl
+import errno
 import os
 import sys
 import scrypt
@@ -24,6 +25,7 @@ class SessionError(Enum):
     UNBOUND_RECORD_ACCESS = 4
     MTIME_IN_THE_FUTURE = 5
     PATH_COLLISION = 6
+    DB_LOCKED = 7
 
 class SessionException(Exception):
     def __init__(self, error: SessionError):
@@ -528,7 +530,13 @@ class SessionStarter:
     def acquire_lock(self):
         assert not self.has_lock
         self.lockfile = open(self.lock_filename(), "w")
-        fcntl.lockf(self.lockfile, fcntl.LOCK_EX|fcntl.LOCK_NB)
+        try:
+            fcntl.lockf(self.lockfile, fcntl.LOCK_EX|fcntl.LOCK_NB)
+        except OSError as e:
+            self.lockfile.close()
+            if e.errno in (errno.EACCES, errno.EAGAIN):
+                raise SessionException(SessionError.DB_LOCKED) from e
+            raise
         self.has_lock = True
 
     def release_lock(self):

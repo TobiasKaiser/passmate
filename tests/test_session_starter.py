@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
+import errno
 from passmate.session import SessionException, SessionError
 from .start_session import start_session
 
@@ -44,4 +45,16 @@ def test_db_wrong_passphrase(tmp_path):
 
     with pytest.raises(SessionException, match="SessionError.WRONG_PASSPHRASE"):
         with start_session(tmp_path, init=False, passphrase="Wrong") as session:
-            pass    
+            pass
+
+
+def test_lock_contention_raises_db_locked(tmp_path, monkeypatch):
+    sp = start_session(tmp_path, init=True)
+
+    def fake_lockf(*args, **kwargs):
+        raise OSError(errno.EAGAIN, "already locked")
+
+    monkeypatch.setattr("passmate.session.fcntl.lockf", fake_lockf)
+
+    with pytest.raises(SessionException, match="SessionError.DB_LOCKED"):
+        sp.acquire_lock()
