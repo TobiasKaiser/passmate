@@ -1,14 +1,15 @@
 [build-system]
-requires = ["flit_core >=3.2,<4"]
-build-backend = "flit_core.buildapi"
+requires = ["setuptools>=69", "setuptools_scm>=8"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "passmate"
 authors = [{name = "Tobias Kaiser", email = "mail@tb-kaiser.de"}]
+description = "A simple password manager with synchronization"
 readme = "README.md"
 license = {file = "LICENSE"}
 classifiers = ["License :: OSI Approved :: Apache Software License"]
-dynamic = ["version", "description"]
+dynamic = ["version"]
 requires-python = ">=3.7"
 dependencies = [
     "scrypt >=0.8.6",
@@ -22,3 +23,8 @@ Source = "https://github.com/TobiasKaiser/passmate"
 
 [project.scripts]
 passmate = "passmate.cli:main"
+
+[tool.setuptools]
+packages = ["passmate"]
+
+[tool.setuptools_scm]

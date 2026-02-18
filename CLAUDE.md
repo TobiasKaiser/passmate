@@ -26,8 +26,8 @@ passmate migrate <in.pmdb> <out.pmdb>  # Migrate from v1 format
 
 ### Building and Installing
 ```bash
-python3 -m flit build                # Build distribution
-python3 -m flit install              # Install locally
+python3 -m build                     # Build distribution
+python3 -m pip install -e .          # Install locally (editable)
 ```
 
 ## Architecture Overview
