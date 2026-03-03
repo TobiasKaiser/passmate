@@ -22,7 +22,7 @@ dependencies = [
 Source = "https://github.com/TobiasKaiser/passmate"
 
 [project.scripts]
-passmate = "passmate.cli:main"
+passmate = "passmate.__main__:main"
 
 [tool.setuptools]
 packages = ["passmate"]

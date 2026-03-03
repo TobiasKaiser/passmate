@@ -55,7 +55,7 @@ def main():
     parser_open.add_argument("--skip-sync", action="store_true",
         help="Skip synchronization at startup")
     parser_open.set_defaults(action=main_open)
-    
+
     parser_migrate = subparsers.add_parser("migrate",
         help="Migrate from old database format")
     parser_migrate.add_argument("pmdb_in", help="Input database file")
@@ -63,5 +63,8 @@ def main():
     parser_migrate.set_defaults(action=main_migrate)
 
     args = ap.parse_args()
-    
+
     args.action(args)
+
+if __name__ == "__main__":
+    main()
