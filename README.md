@@ -202,7 +202,7 @@ Passmate works with any file synchronization mechanism. Popular options include:
 
 ## Security
 
-* All databases are encrypted using the [**scrypt**](https://www.tarsnap.com/scrypt.html) key derivation function (maxtime=1.0s, maxmem=16MB).
+* All databases are encrypted using the [**scrypt**](https://www.tarsnap.com/scrypt.html) key derivation function (N=2^17, r=8, p=1).
 * Data is padded to 4KB increments to reduce metadata leakage.
 * Password generation uses Python's `secrets` module (CSPRNG).
 

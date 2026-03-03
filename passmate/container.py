@@ -6,9 +6,12 @@ import shutil
 import scrypt
 import os
 
-maxtime = 1.0
-maxmem = 16*1024*1024
-maxmemfrac = 0.5
+# Scrypt parameters (explicit, static)
+# This provides ~128MB memory cost and ~0.4s computation time
+# See also: https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html
+scrypt_logN = 17  # N = 2^17 = 131072
+scrypt_r = 8
+scrypt_p = 1
 
 padding_increment = 4096
 
@@ -22,7 +25,7 @@ def save_encrypted(filename: Path, passphrase: str, data_plain: str):
     data_plain_padded = pad_string(data_plain)
 
     data_scrypt = scrypt.encrypt(data_plain_padded, passphrase,
-        maxtime=maxtime, maxmem=maxmem, maxmemfrac=maxmemfrac)
+        logN=scrypt_logN, r=scrypt_r, p=scrypt_p)
 
     # Create pmdb file with mode 600, to prevent other users or group members
     # from accessing it:

@@ -78,7 +78,7 @@ Passmate implements a **conflict-free replicated data type (CRDT)** using Last-W
 ### Encryption
 
 All databases encrypted with scrypt (`container.py`):
-- Uses time-based key derivation (maxtime=1.0s)
+- Uses static parameters (N=2^17, r=8, p=1)
 - Padding to 4KB increments to reduce metadata leakage
 - Atomic writes via temporary files and `shutil.move()`
 
