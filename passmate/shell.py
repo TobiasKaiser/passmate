@@ -278,7 +278,7 @@ class CmdSet(Command):
         if len(field_name)==0:
             self.print_usage_error("Missing field name.")
             return
-        
+
         try:
             old_value = rec[field_name]
         except KeyError:
@@ -287,6 +287,7 @@ class CmdSet(Command):
         new_value = prompt("Value: ", default=old_value)
 
         rec[field_name] = new_value
+        self.shell.mark_ephemeral_output(1)
 
 class CmdGen(Command):
     name = "gen"
@@ -319,6 +320,7 @@ class CmdGen(Command):
         print(f"Generated {field_name}: {new_value}")
 
         rec[field_name] = new_value
+        self.shell.mark_ephemeral_output(3)
 
 class CmdUnset(Command):
     name = "unset"
